@@ -10,10 +10,6 @@ import { Auth } from "../auth"
 import { ProviderTransform } from "@/provider/transform"
 
 import PROMPT_GENERATE from "./generate.txt"
-import PROMPT_COMPACTION from "./prompt/compaction.txt"
-import PROMPT_EXPLORE from "./prompt/explore.txt"
-import PROMPT_SUMMARY from "./prompt/summary.txt"
-import PROMPT_TITLE from "./prompt/title.txt"
 import { Permission } from "@/permission"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
 import { Global } from "@opencode-ai/core/global"
@@ -150,115 +146,6 @@ export const layer = Layer.effect(
             ),
             mode: "primary",
             native: true,
-          },
-          plan: {
-            name: "plan",
-            description: "Plan mode. Disallows all edit tools.",
-            options: {},
-            permission: Permission.merge(
-              defaults,
-              Permission.fromConfig({
-                question: "allow",
-                plan_exit: "allow",
-                task: {
-                  general: "deny",
-                },
-                external_directory: {
-                  [path.join(Global.Path.data, "plans", "*")]: "allow",
-                },
-                edit: {
-                  "*": "deny",
-                  [path.join(".opencode", "plans", "*.md")]: "allow",
-                  [path.relative(ctx.worktree, path.join(Global.Path.data, path.join("plans", "*.md")))]: "allow",
-                },
-              }),
-              user,
-            ),
-            mode: "primary",
-            native: true,
-          },
-          general: {
-            name: "general",
-            description: `General-purpose agent for researching complex questions and executing multi-step tasks. Use this agent to execute multiple units of work in parallel.`,
-            permission: Permission.merge(
-              defaults,
-              Permission.fromConfig({
-                todowrite: "deny",
-              }),
-              user,
-            ),
-            options: {},
-            mode: "subagent",
-            native: true,
-          },
-          explore: {
-            name: "explore",
-            permission: Permission.merge(
-              defaults,
-              Permission.fromConfig({
-                "*": "deny",
-                grep: "allow",
-                glob: "allow",
-                list: "allow",
-                bash: "allow",
-                webfetch: "allow",
-                websearch: "allow",
-                read: "allow",
-                external_directory: readonlyExternalDirectory,
-              }),
-              user,
-            ),
-            description: `Fast agent specialized for exploring codebases. Use this when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), or answer questions about the codebase (eg. "how do API endpoints work?"). When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions.`,
-            prompt: PROMPT_EXPLORE,
-            options: {},
-            mode: "subagent",
-            native: true,
-          },
-          compaction: {
-            name: "compaction",
-            mode: "primary",
-            native: true,
-            hidden: true,
-            prompt: PROMPT_COMPACTION,
-            permission: Permission.merge(
-              defaults,
-              Permission.fromConfig({
-                "*": "deny",
-              }),
-              user,
-            ),
-            options: {},
-          },
-          title: {
-            name: "title",
-            mode: "primary",
-            options: {},
-            native: true,
-            hidden: true,
-            temperature: 0.5,
-            permission: Permission.merge(
-              defaults,
-              Permission.fromConfig({
-                "*": "deny",
-              }),
-              user,
-            ),
-            prompt: PROMPT_TITLE,
-          },
-          summary: {
-            name: "summary",
-            mode: "primary",
-            options: {},
-            native: true,
-            hidden: true,
-            permission: Permission.merge(
-              defaults,
-              Permission.fromConfig({
-                "*": "deny",
-              }),
-              user,
-            ),
-            prompt: PROMPT_SUMMARY,
           },
         }
 
