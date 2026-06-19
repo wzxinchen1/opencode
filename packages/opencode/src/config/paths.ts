@@ -28,7 +28,6 @@ export const directories = Effect.fn("ConfigPaths.directories")(function* (direc
       ? yield* afs.up({
           targets: [".opencode"],
           start: directory,
-          stop: worktree,
         })
       : []),
     ...(yield* afs.up({

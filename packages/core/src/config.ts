@@ -179,7 +179,6 @@ export const layer = Layer.effect(
           .up({
             targets: [".opencode", ...names.toReversed()],
             start: location.directory,
-            stop: location.project.directory,
           })
           .pipe(Effect.orDie)
     const directories = [

@@ -17,6 +17,7 @@
     "upgrade-opentui": "bun run script/upgrade-opentui.ts",
     "postinstall": "bun run --cwd packages/core fix-node-pty",
     "prepare": "husky",
+    "build:deploy": "cd packages/opencode && bun run script/build.ts --single --skip-embed-web-ui --skip-install && cp dist/opencode-linux-x64/bin/opencode $HOME/.opencode/bin/opencode && echo 'deployed: opencode'",
     "random": "echo 'Random script'",
     "sso": "aws sso login --sso-session=opencode --no-browser",
     "test": "echo 'do not run tests from root' && exit 1"
