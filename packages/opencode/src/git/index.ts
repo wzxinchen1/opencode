@@ -3,6 +3,20 @@ import { AppProcess } from "@opencode-ai/core/process"
 import { Effect, Layer, Context, Stream } from "effect"
 import { ChildProcess } from "effect/unstable/process"
 
+const gitPathByDir = new Map<string, string>()
+export const setGitPath = (dir: string, path: string) => { gitPathByDir.set(dir, path) }
+export const getGitPath = (dir?: string) => {
+  if (!dir) return "git"
+  if (gitPathByDir.has(dir)) return gitPathByDir.get(dir)!
+  let best: string | undefined
+  for (const registered of gitPathByDir.keys()) {
+    if (dir.startsWith(registered) && (dir.length === registered.length || dir[registered.length] === "/")) {
+      if (!best || registered.length > best.length) best = registered
+    }
+  }
+  return best ? gitPathByDir.get(best)! : "git"
+}
+
 const cfg = [
   "--no-optional-locks",
   "-c",
@@ -70,6 +84,7 @@ export interface Options {
   readonly env?: Record<string, string>
   readonly maxOutputBytes?: number
   readonly stdin?: ChildProcess.CommandInput
+  readonly gitPath?: string
 }
 
 export interface Interface {
@@ -110,7 +125,7 @@ export const layer = Layer.effect(
     const run = Effect.fn("Git.run")(
       function* (args: string[], opts: Options) {
         const result = yield* appProcess.run(
-          ChildProcess.make("git", [...cfg, ...args], {
+          ChildProcess.make(opts.gitPath ?? getGitPath(opts.cwd), [...cfg, ...args], {
             cwd: opts.cwd,
             env: opts.env,
             extendEnv: true,

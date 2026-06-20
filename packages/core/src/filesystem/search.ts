@@ -1,10 +1,11 @@
 export * as FileSystemSearch from "./search"
 
 import path from "path"
-import { Context, Effect, Layer, Scope } from "effect"
+import { Context, Effect, Layer, Option, Scope } from "effect"
 import { Fff } from "#fff"
 import fuzzysort from "fuzzysort"
 import { FileSystem } from "../filesystem"
+import { Config } from "../config"
 import { FSUtil } from "../fs-util"
 import { Location } from "../location"
 import { Ripgrep } from "../ripgrep"
@@ -233,5 +234,14 @@ export const fffLayer = Layer.effect(
 )
 
 export const defaultLayer = Layer.unwrap(
-  Effect.sync(() => (Flag.OPENCODE_DISABLE_FFF || !Fff.available() ? ripgrepLayer : fffLayer)),
+  Effect.gen(function* () {
+    const configOption = yield* Effect.serviceOption(Config.Service)
+    let fromConfig = false
+    if (Option.isSome(configOption)) {
+      const entries = yield* configOption.value.entries()
+      const experimental = Config.latest(entries, "experimental")
+      fromConfig = experimental?.disable_fff === true
+    }
+    return Flag.OPENCODE_DISABLE_FFF || fromConfig || !Fff.available() ? ripgrepLayer : fffLayer
+  }),
 )

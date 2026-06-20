@@ -8,6 +8,7 @@ import { InstanceState } from "@/effect/instance-state"
 import { FSUtil } from "@opencode-ai/core/fs-util"
 import { Hash } from "@opencode-ai/core/util/hash"
 import { Config } from "@/config/config"
+import { Git } from "@/git"
 import { Global } from "@opencode-ai/core/global"
 
 export const Patch = Schema.Struct({
@@ -87,7 +88,7 @@ export const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Serv
         const git = Effect.fnUntraced(
           function* (cmd: string[], opts?: { cwd?: string; env?: Record<string, string>; stdin?: string }) {
             const result = yield* appProcess.run(
-              ChildProcess.make("git", cmd, { cwd: opts?.cwd, env: opts?.env, extendEnv: true }),
+              ChildProcess.make(Git.getGitPath(opts?.cwd), cmd, { cwd: opts?.cwd, env: opts?.env, extendEnv: true }),
               { stdin: opts?.stdin },
             )
             return {
@@ -601,7 +602,7 @@ export const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Serv
                   if (!refs.length) return new Map<string, { before: string; after: string }>()
 
                   const batch = yield* appProcess.run(
-                    ChildProcess.make("git", [...cfg, ...args(["cat-file", "--batch"])], {
+                    ChildProcess.make(Git.getGitPath(state.directory), [...cfg, ...args(["cat-file", "--batch"])], {
                       cwd: state.directory,
                       extendEnv: true,
                     }),

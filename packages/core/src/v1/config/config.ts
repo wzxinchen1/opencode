@@ -34,6 +34,9 @@ export const Info = Schema.Struct({
     description: "JSON schema reference for configuration validation",
   }),
   shell: Schema.optional(Schema.String).annotate({ description: "Default shell to use for terminal and bash tool" }),
+  gitPath: Schema.optional(Schema.String).annotate({
+    description: "Path to the git binary. Useful in WSL2 to point to Windows git (e.g. /mnt/c/Program Files/Git/bin/git.exe) for better filesystem performance.",
+  }),
   logLevel: Schema.optional(LogLevelRef).annotate({ description: "Log level" }),
   server: Schema.optional(ConfigServerV1.Server).annotate({
     description: "Server configuration for opencode serve and web commands",

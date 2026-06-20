@@ -21,6 +21,7 @@ import { serviceUse } from "@opencode-ai/core/effect/service-use"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { EventV2 } from "@opencode-ai/core/event"
+import { Git } from "@/git"
 
 const ProjectVcs = Schema.Literal("git")
 
@@ -146,7 +147,7 @@ export const layer = Layer.effect(
     const git = Effect.fnUntraced(
       function* (args: string[], opts?: { cwd?: string }) {
         const handle = yield* spawner.spawn(
-          ChildProcess.make("git", args, { cwd: opts?.cwd, extendEnv: true, stdin: "ignore" }),
+          ChildProcess.make(Git.getGitPath(opts?.cwd), args, { cwd: opts?.cwd, extendEnv: true, stdin: "ignore" }),
         )
         const [text, stderr] = yield* Effect.all(
           [Stream.mkString(Stream.decodeText(handle.stdout)), Stream.mkString(Stream.decodeText(handle.stderr))],

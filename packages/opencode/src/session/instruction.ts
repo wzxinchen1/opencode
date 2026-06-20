@@ -122,12 +122,35 @@ export const layer: Layer.Layer<
       // The first project-level match wins so we don't stack AGENTS.md/CLAUDE.md from every ancestor.
       if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
         for (const file of instructionFiles) {
+          // Use `up` without a stop-boundary so the search is not truncated by
+          // ctx.worktree (which often equals ctx.directory, making findUp a no-op).
           const matches = yield* fs
-            .findUp(file, ctx.directory, ctx.worktree)
+            .up({ targets: [file], start: ctx.directory })
             .pipe(Effect.catch(() => Effect.succeed([])))
           if (matches.length > 0) {
-            matches.forEach((item) => paths.add(path.resolve(item)))
+            for (const item of matches) {
+              paths.add(path.resolve(item))
+            }
             break
+          }
+        }
+
+        // `up({ targets: [file], ... })` only checks each ancestor's direct
+        // children — it never looks inside a `.opencode` subdirectory.
+        // MCP servers and other plugin config are loaded from `.opencode/opencode.json`
+        // via ConfigPaths.directories, but AGENTS.md placed next to that file would
+        // be missed.  Discover it here as a supplement.
+        const opencodeDirs = yield* fs
+          .up({ targets: [".opencode"], start: ctx.directory })
+          .pipe(Effect.catch(() => Effect.succeed([] as string[])))
+        if (opencodeDirs.length) {
+          for (const dir of opencodeDirs) {
+            for (const file of instructionFiles) {
+              const filepath = path.join(dir, file)
+              if (yield* fs.existsSafe(filepath)) {
+                paths.add(path.resolve(filepath))
+              }
+            }
           }
         }
       }

@@ -170,7 +170,7 @@ export const layer: Layer.Layer<
     const git = Effect.fnUntraced(
       function* (args: string[], opts?: { cwd?: string }) {
         const result = yield* appProcess.run(
-          ChildProcess.make("git", args, { cwd: opts?.cwd, extendEnv: true, stdin: "ignore" }),
+          ChildProcess.make(Git.getGitPath(opts?.cwd), args, { cwd: opts?.cwd, extendEnv: true, stdin: "ignore" }),
         )
         return {
           code: result.exitCode,

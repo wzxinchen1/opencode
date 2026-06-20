@@ -15,4 +15,8 @@ export class Policy extends Schema.Class<Policy>("ConfigV2.Experimental.Policy")
 
 export class Experimental extends Schema.Class<Experimental>("ConfigV2.Experimental")({
   policies: Policy.pipe(Schema.Array, Schema.optional),
+  disable_fff: Schema.Boolean.pipe(Schema.optional).annotate({
+    description:
+      "Disable the FFF native file-search indexer and fall back to ripgrep-based search. Useful on slow filesystems such as WSL2 /mnt mounts.",
+  }),
 }) {}
