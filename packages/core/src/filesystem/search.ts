@@ -233,7 +233,7 @@ export const fffLayer = Layer.effect(
   }),
 )
 
-export const defaultLayer = Layer.unwrap(
+export const locationLayer = Layer.unwrap(
   Effect.gen(function* () {
     const configOption = yield* Effect.serviceOption(Config.Service)
     let fromConfig = false
