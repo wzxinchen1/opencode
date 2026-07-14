@@ -67,7 +67,6 @@ export const ripgrepLayer = Layer.effect(
                       ...entry,
                       path: RelativePath.make(path.relative(location.directory, path.resolve(cwd, entry.path))),
                     }),
-                  ),
                 ),
               ),
               Effect.orDie,
