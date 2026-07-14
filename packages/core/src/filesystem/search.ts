@@ -63,10 +63,11 @@ export const ripgrepLayer = Layer.effect(
               Effect.map((result) =>
                 result.map(
                   (entry) =>
-                    new FileSystem.Entry({
+                    FileSystem.Entry.make({
                       ...entry,
                       path: RelativePath.make(path.relative(location.directory, path.resolve(cwd, entry.path))),
                     }),
+                  ),
                 ),
               ),
               Effect.orDie,
@@ -89,9 +90,9 @@ export const ripgrepLayer = Layer.effect(
               Effect.map((result) =>
                 result.map(
                   (match) =>
-                    new FileSystem.Match({
+                    FileSystem.Match.make({
                       ...match,
-                      entry: new FileSystem.Entry({
+                      entry: FileSystem.Entry.make({
                         ...match.entry,
                         path: RelativePath.make(path.relative(location.directory, path.resolve(cwd, match.entry.path))),
                       }),
@@ -114,7 +115,7 @@ export const ripgrepLayer = Layer.effect(
             const type = relative.endsWith(path.sep) ? ("directory" as const) : ("file" as const)
             const clean = type === "directory" ? relative.slice(0, -path.sep.length) : relative
             const absolute = path.resolve(location.directory, clean)
-            return new FileSystem.Entry({
+            return FileSystem.Entry.make({
               path: RelativePath.make(relative),
               type,
               mime: type === "directory" ? "application/x-directory" : FSUtil.mimeType(absolute),
@@ -161,7 +162,7 @@ export const fffLayer = Layer.effect(
           if (!found.ok) throw found.error
           return found.value.items.map((item) => {
             const absolute = path.resolve(location.directory, item.relativePath)
-            return new FileSystem.Entry({
+            return FileSystem.Entry.make({
               path: RelativePath.make(item.relativePath.replaceAll("\\", "/")),
               type: "file",
               mime: FSUtil.mimeType(absolute),
@@ -180,8 +181,8 @@ export const fffLayer = Layer.effect(
           if (!found.ok) throw found.error
           return found.value.items.map((match) => {
             const bytes = Buffer.from(match.lineContent)
-            return new FileSystem.Match({
-              entry: new FileSystem.Entry({
+            return FileSystem.Match.make({
+              entry: FileSystem.Entry.make({
                 path: RelativePath.make(match.relativePath.replaceAll("\\", "/")),
                 type: "file",
                 mime: FSUtil.mimeType(match.relativePath),
@@ -232,7 +233,7 @@ export const fffLayer = Layer.effect(
             .map((item) => {
               const relative = item.path.replaceAll("\\", "/").replace(/\/$/, "")
               const absolute = path.resolve(location.directory, relative)
-              return new FileSystem.Entry({
+              return FileSystem.Entry.make({
                 path: RelativePath.make(relative + (item.type === "directory" ? path.sep : "")),
                 type: item.type,
                 mime: item.type === "directory" ? "application/x-directory" : FSUtil.mimeType(absolute),
