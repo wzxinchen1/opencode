@@ -75,6 +75,18 @@ const transform = (service: Tool.Interface, tools: Readonly<Record<string, Info>
   )
 
 describe("Tool", () => {
+  it.effect("keeps hidden tools executable without advertising them", () =>
+    Effect.gen(function* () {
+      const service = yield* Tool.Service
+      yield* transform(service, { visible: constant("visible") }, { codemode: false })
+      yield* transform(service, { secret: constant("secret") }, { codemode: false, hidden: true })
+      const snapshot = yield* service.snapshot()
+      const names = snapshot.definitions.map((definition) => definition.name)
+      expect(names).toContain("visible")
+      expect(names).not.toContain("secret")
+      expect((yield* executeTool(service, call("secret"))).output).toEqual({ text: "secret" })
+    }),
+  )
   it.effect("reads the current editor tools by effective name", () =>
     Effect.gen(function* () {
       const service = yield* Tool.Service

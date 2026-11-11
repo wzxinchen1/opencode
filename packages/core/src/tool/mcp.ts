@@ -54,7 +54,11 @@ export const layer = Layer.effect(
             for (const tool of discovered) {
               editor.add({
                 name: tool.name,
-                options: { namespace: namespace(tool.server), codemode: tool.codemode !== false },
+                options: {
+                  namespace: namespace(tool.server),
+                  codemode: tool.codemode !== false,
+                  hidden: tool.remote === true,
+                },
                 description: tool.description ?? "",
                 input: tool.inputSchema as JsonSchema.JsonSchema,
                 output: (tool.outputSchema ?? {}) as JsonSchema.JsonSchema,

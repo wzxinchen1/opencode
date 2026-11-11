@@ -65,6 +65,39 @@ describe("McpInstructions", () => {
     ),
   )
 
+  it.effect("lists a remote server without instructions even when execute is denied", () =>
+    Effect.gen(function* () {
+      const service = yield* McpInstructions.Service
+      const generation = yield* service
+        .load([{ action: "execute", resource: "*", effect: "deny" }])
+        .pipe(Effect.flatMap(readInitial))
+
+      expect(generation.text).toBe(
+        [
+          "<mcp_instructions>",
+          '  <server name="remote">',
+          "    This server is connected. Its tools are available but not listed here.",
+          "  </server>",
+          "</mcp_instructions>",
+        ].join("\n"),
+      )
+    }).pipe(
+      Effect.provide(
+        layer(
+          () => [],
+          () => [
+            {
+              server: Mcp.ServerName.make("remote"),
+              name: "search",
+              inputSchema: schema,
+              remote: true,
+            } satisfies Mcp.Tool,
+          ],
+        ),
+      ),
+    ),
+  )
+
   it.effect("lists Code Mode servers as direct tools when the agent cannot use execute", () =>
     Effect.gen(function* () {
       const service = yield* McpInstructions.Service

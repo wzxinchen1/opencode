@@ -52,7 +52,11 @@ export interface ServerInstructions {
 }
 
 /** Checked MCP tool definition tagged with the server that owns it. */
-export type Tool = McpClient.Tool & { readonly server: ServerName; readonly codemode?: boolean }
+export type Tool = McpClient.Tool & {
+  readonly server: ServerName
+  readonly codemode?: boolean
+  readonly remote?: boolean
+}
 export type ToolResultContent = McpClient.CallToolContent
 export type ToolResult = McpClient.CallToolResult
 export type Prompt = McpClient.Prompt & { readonly server: ServerName }
@@ -488,6 +492,7 @@ export const layer = (options?: Options) =>
                 ...tool,
                 server: name,
                 codemode: entry.config.codemode,
+                remote: entry.config.type === "remote",
               }),
             ),
           }

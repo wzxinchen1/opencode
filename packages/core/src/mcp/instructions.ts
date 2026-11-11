@@ -21,7 +21,10 @@ const entries = (servers: ReadonlyArray<Summary>) =>
       result.push(
         `    Use tools from this server through \`execute\` under \`tools[${JSON.stringify(McpTool.namespace(server.server))}]\`.`,
       )
-    result.push(...server.instructions.split("\n").map((line) => `    ${line}`), "  </server>")
+    const instructions = server.instructions.split("\n").filter((line) => line.length > 0)
+    if (instructions.length === 0)
+      result.push("    This server is connected. Its tools are available but not listed here.")
+    result.push(...instructions.map((line) => `    ${line}`), "  </server>")
     return result
   })
 
@@ -70,17 +73,23 @@ export const layer = Layer.effect(
         const [instructions, tools] = yield* Effect.all([mcp.instructions(), mcp.tools()], {
           concurrency: "unbounded",
         })
+        const remote = new Set(tools.filter((tool) => tool.remote === true).map((tool) => tool.server))
+        const merged = [
+          ...instructions,
+          ...Array.from(remote)
+            .filter((server) => !instructions.some((item) => item.server === server))
+            .map((server) => ({ server, instructions: "" })),
+        ]
         const canExecute = Permission.evaluate("execute", "*", permissions).effect !== "deny"
         // Instructions are useful only when this Session can reach at least one server tool.
-        const visible = instructions
+        const visible = merged
           .flatMap((item) => {
             const owned = tools.filter((tool) => tool.server === item.server)
             // Without execute, Code Mode server tools are exposed directly.
             const codemode = canExecute && owned[0]?.codemode !== false
             if (
               !owned.some(
-                (tool) =>
-                  Permission.evaluate(McpTool.name(tool.server, tool.name), "*", permissions).effect !== "deny",
+                (tool) => Permission.evaluate(McpTool.name(tool.server, tool.name), "*", permissions).effect !== "deny",
               )
             )
               return []

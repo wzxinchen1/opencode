@@ -27,6 +27,8 @@ export interface Namespace {
 interface BaseOptions {
   readonly namespace?: string
   readonly permission?: string
+  /** Keep the tool executable but out of the advertised tool list and Code Mode catalog. */
+  readonly hidden?: boolean
 }
 
 export type Options = BaseOptions &

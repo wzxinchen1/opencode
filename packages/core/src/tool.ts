@@ -260,12 +260,14 @@ const layer = Layer.effect(
             if (whollyDisabled(tool.options?.permission ?? name, rules)) continue
             active.set(name, tool)
           }
+          // Hidden tools stay executable but are never advertised to the model.
+          const advertised = new Map(Array.from(active).filter(([, tool]) => tool.options?.hidden !== true))
           const codeModeEnabled = !whollyDisabled("execute", rules)
           // Without Code Mode its tools would be unreachable, so expose them as direct tools instead.
           const direct = codeModeEnabled
-            ? new Map(Array.from(active).filter(([, tool]) => tool.options?.codemode === false))
-            : active
-          const codeModeTools = new Map(Array.from(active).filter(([, tool]) => tool.options?.codemode !== false))
+            ? new Map(Array.from(advertised).filter(([, tool]) => tool.options?.codemode === false))
+            : advertised
+          const codeModeTools = new Map(Array.from(advertised).filter(([, tool]) => tool.options?.codemode !== false))
           const names = Array.from(codeModeTools.keys()).join("\0")
           // Discovery is immutable for a registry revision and visible tool set. Keep executors
           // fresh, but share the inventory, whose prepared runtime and much larger rendered catalog
@@ -316,7 +318,7 @@ const layer = Layer.effect(
               const name = requested?.name ?? event.tool
               if (name === "execute" && codeModeTool)
                 return yield* executeTool(codeModeTool, name, event.input, context)
-              const tool = direct.get(name)
+              const tool = active.get(name)
               if (tool) return yield* executeTool(tool, name, event.input, context)
               return yield* new Tool.Error({
                 message: `No tool named "${name}" is currently available. Please use a tool from the available tool list.`,
