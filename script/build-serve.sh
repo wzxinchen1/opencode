@@ -14,6 +14,7 @@
 #   OPENCODE_BIN      install target (default: ~/.opencode/bin/opencode)
 #   WSL_DISTRO        distro passed to wsl.exe -d (default: $WSL_DISTRO_NAME)
 #   BUN               bun executable (default: bun from PATH, then ~/.bun/bin/bun)
+#   OPENCODE_CHANNEL  build channel (default: dev, which shares the release database)
 #
 # systemctl runs as root through wsl.exe, so no sudo password is needed.
 set -euo pipefail
@@ -30,7 +31,7 @@ for arg in "$@"; do
     restart|start|stop|status|none) action="$arg" ;;
     --skip-build) build=0 ;;
     --skip-install) install=0 ;;
-    -h|--help) sed -n '2,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,18p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown argument: $arg (try --help)" >&2; exit 2 ;;
   esac
 done
@@ -41,6 +42,11 @@ if [[ -z "$bun" ]]; then
   [[ -n "$bun" ]] || bun="$HOME/.bun/bin/bun"
 fi
 [[ -x "$bun" ]] || { echo "bun not found; set BUN or install bun" >&2; exit 1; }
+
+# 分支名当 channel 会让构建自带一个独立数据库（packages/cli/src/database-path.ts 经
+# packages/script/src/index.ts 取 channel），长期驻留的服务就会落到空库上；dev 是上游
+# 定义为「共享服务与数据库」的频道。
+export OPENCODE_CHANNEL="${OPENCODE_CHANNEL:-dev}"
 
 if (( build )); then
   echo "==> build packages/cli (single target)"
