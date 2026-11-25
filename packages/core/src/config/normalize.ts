@@ -16,6 +16,7 @@ import { ConfigPlugin } from "@opencode/schema/config/plugin"
 import { ConfigPolicy } from "@opencode/schema/config/policy"
 import { ConfigProvider } from "@opencode/schema/config/provider"
 import { ConfigReference } from "@opencode/schema/config/reference"
+import { ConfigTool } from "@opencode/schema/config/tool"
 import { ConfigExperimental } from "@opencode/schema/config/experimental"
 import { Permission } from "@opencode/schema/permission"
 import { ConfigAgentV1 } from "../v1/config/agent.js"
@@ -213,6 +214,7 @@ export function normalize(input: unknown): Result {
   normalizePolicies(input, encoded, diagnostics)
   normalizeExperimental(input, encoded, diagnostics)
   normalizeWatcher(input, encoded, diagnostics)
+  normalizeTool(input, encoded, diagnostics)
   normalizeFormatter(input, encoded, diagnostics)
   normalizeLsp(input, encoded, diagnostics)
 
@@ -507,6 +509,16 @@ function normalizeWatcher(input: Record<string, unknown>, encoded: Record<string
   }
   const ignore = decodeList(input.watcher.ignore, Schema.String, ["watcher", "ignore"], diagnostics, decodeEncoded)
   encoded.watcher = ignore.length || Array.isArray(input.watcher.ignore) ? { ignore } : {}
+}
+
+function normalizeTool(input: Record<string, unknown>, encoded: Record<string, unknown>, diagnostics: Diagnostic[]) {
+  if (!own(input, "tool")) return
+  if (!isRecord(input.tool)) {
+    invalid(["tool"], diagnostics)
+    return
+  }
+  const tools = decodeMap(input.tool, ConfigTool.Info, ["tool"], diagnostics, decodeEncoded)
+  if (Object.keys(tools).length || Object.keys(input.tool).length === 0) encoded.tool = tools
 }
 
 function normalizeFormatter(

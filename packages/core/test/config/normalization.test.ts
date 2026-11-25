@@ -158,6 +158,40 @@ describe("ConfigNormalize", () => {
     ])
   })
 
+  test("preserves per-tool end_turn declarations by effective name", () => {
+    const result = normalized({
+      tool: {
+        "mcp-cross-project_ask_project": { end_turn: true },
+        ordinary: { end_turn: false },
+      },
+    })
+    expect(result.diagnostics).toEqual([])
+    expect(result.encoded.tool).toEqual({
+      "mcp-cross-project_ask_project": { end_turn: true },
+      ordinary: { end_turn: false },
+    })
+    const info = Schema.decodeUnknownSync(Info)(result.encoded)
+    expect(info.tool?.["mcp-cross-project_ask_project"]?.end_turn).toBe(true)
+    expect(info.tool?.ordinary?.end_turn).toBe(false)
+  })
+
+  test("recovers malformed tool entries without dropping valid ones", () => {
+    const result = normalized({
+      tool: {
+        valid: { end_turn: true },
+        invalid: { end_turn: "yes" },
+      },
+    })
+    expect(result.encoded.tool).toEqual({ valid: { end_turn: true } })
+    expect(result.diagnostics.map((item) => [item.kind, item.path])).toEqual([["invalid", ["tool", "invalid"]]])
+  })
+
+  test("diagnoses a malformed tool root", () => {
+    const result = normalized({ tool: [] })
+    expect(result.encoded.tool).toBeUndefined()
+    expect(result.diagnostics.map((item) => [item.kind, item.path])).toEqual([["invalid", ["tool"]]])
+  })
+
   test("does not report canonical-equal duplicates as conflicts", () => {
     const result = normalized({
       snapshot: false,
