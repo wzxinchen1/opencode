@@ -7,11 +7,10 @@ import { Global } from "@opencode/util/global"
 import { OPENCODE_ARTIFACT, OPENCODE_CHANNEL, OPENCODE_VERSION } from "./version"
 import { AppProcess } from "@opencode/util/process"
 import { randomBytes, randomUUID } from "node:crypto"
-import { Effect, Option, Redacted, Schema } from "effect"
+import { Effect, Option, Schema } from "effect"
 import { PersistentPty } from "@opencode/schema/persistent-pty"
 import { HttpServer } from "effect/http"
 import { NetAddress } from "effect/net"
-import { Env } from "./env"
 import { PortOwner } from "./services/port-owner"
 import { ServiceConfig } from "./services/service-config"
 import { RetainedImage } from "./services/retained-image"
@@ -66,7 +65,6 @@ const processEffect = Effect.fnUntraced(function* (options: Options) {
     )
   return yield* Effect.scoped(
     Effect.gen(function* () {
-      const foreground = options.mode === "default"
       const serviceOptions = options.mode === "service" ? yield* ServiceConfig.options() : undefined
       const config = options.mode === "service" ? yield* ServiceConfig.read() : {}
       const hostname = options.hostname ?? config.hostname ?? "127.0.0.1"
@@ -82,19 +80,8 @@ const processEffect = Effect.fnUntraced(function* (options: Options) {
       if (options.mode === "service" && process.platform === "win32" && RetainedImage.installed(global.home))
         yield* RetainedImage.retain(global.cache, "service")
       const { start } = yield* Effect.promise(() => import("@opencode/server/process"))
-      const environmentPassword = yield* Env.password
-      // Keep the lease credential out of the environment inherited by tools.
-      if (options.mode === "stdio") {
-        delete process.env.OPENCODE_PASSWORD
-        delete process.env.OPENCODE_SERVER_PASSWORD
-      }
-      const password =
-        options.mode === "service"
-          ? config.password || randomBytes(32).toString("base64url")
-          : environmentPassword
-            ? Redacted.value(environmentPassword)
-            : randomBytes(32).toString("base64url")
-      if (!password) return yield* Effect.fail(new Error("Missing server password"))
+      const registrationPassword =
+        options.mode === "service" ? config.password || randomBytes(32).toString("base64url") : undefined
       const instanceID = randomUUID()
       const transform = yield* WebUi.handler()
       const remote = { urls: [] as ReadonlyArray<string> }
@@ -108,7 +95,6 @@ const processEffect = Effect.fnUntraced(function* (options: Options) {
           hostname,
           port,
           cors: options.cors ?? config.cors,
-          password,
           pty: { handoff },
           simulation: truthy(process.env.OPENCODE_SIMULATE),
           database: {
@@ -154,10 +140,12 @@ const processEffect = Effect.fnUntraced(function* (options: Options) {
           : {
               onListen: (address, shutdown) =>
                 Effect.gen(function* () {
-                  if (!config.password) yield* ServiceConfig.password(password)
+                  if (registrationPassword === undefined)
+                    return yield* Effect.fail(new Error("Managed service started without a registration password"))
+                  if (!config.password) yield* ServiceConfig.password(registrationPassword)
                   return yield* ServiceRegistration.register({
                     address,
-                    password,
+                    password: registrationPassword,
                     id: instanceID,
                     file: serviceOptions.file,
                     shutdown,
@@ -212,7 +200,6 @@ const processEffect = Effect.fnUntraced(function* (options: Options) {
       }
       const url = HttpServer.formatAddress(server.address)
       console.log(options.mode === "stdio" ? JSON.stringify({ url }) : `server listening on ${url}`)
-      if (foreground && !environmentPassword) console.log(`server password ${password}`)
       return yield* options.mode === "service"
         ? server.shutdown
         : options.mode === "stdio"
