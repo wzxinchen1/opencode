@@ -95,6 +95,7 @@ const client = Layer.mock(LLMClient.Service)({
     }),
 })
 const models = Layer.mock(SessionRunnerModel.Service)({
+  select: (session) => Effect.fail(new SessionRunnerModel.ModelNotSelectedError({ sessionID: session.id })),
   resolve: () =>
     Effect.succeed(
       SessionRunnerModel.resolved(model, {
@@ -147,6 +148,7 @@ const tools = Layer.mock(Tool.Service, {
         ],
       },
       definitions: [ToolDefinition.make({ name: "lookup", description: "Lookup", inputSchema: { type: "object" } })],
+      unadvertised: [],
       execute: () => Effect.die(new Error("unused")),
     }),
   transform: () => Effect.die(new Error("unused")),

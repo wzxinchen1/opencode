@@ -55,6 +55,7 @@ describe("SessionModelRequest HTTP hooks", () => {
           definitions: formats.map(
             (freeform) => new ToolDefinition({ name: freeform.type, description: "", inputSchema, freeform }),
           ),
+          unadvertised: [],
           execute: () => Effect.die("unused tool execution"),
         }
         const requests = yield* SessionModelRequest.Service.pipe(Effect.provide(SessionModelRequest.layer))
@@ -178,6 +179,7 @@ describe("SessionModelRequest HTTP hooks", () => {
       const inputSchema = { type: "object", properties: { id: { type: "string" } }, required: ["id"] }
       const tools = {
         definitions: [new ToolDefinition({ name: "lookup", description: "Lookup", inputSchema })],
+        unadvertised: [],
         execute: () => Effect.die("unused tool execution"),
       }
 

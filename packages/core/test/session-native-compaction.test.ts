@@ -203,6 +203,7 @@ const setup = Effect.fnUntraced(function* (options: { endpoint?: boolean } = {})
         definitions: [
           ToolDefinition.make({ name: "read", description: "Read a file", inputSchema: { type: "object" } }),
         ],
+        unadvertised: [],
         execute: () => Effect.die("Compaction must never dispatch tools"),
       },
     }
