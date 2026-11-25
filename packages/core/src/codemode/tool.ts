@@ -104,6 +104,7 @@ export const create = (
         const callIndex = yield* Ref.make(0)
         const files = yield* Ref.make<Array<CollectedFiles>>([])
         const calls = yield* Ref.make<Array<ExecuteCall>>([])
+        const endTurn = yield* Ref.make(false)
         const lock = Semaphore.makeUnsafe(1)
         // Each update replaces the last, so send at most one per 100 ms; a trailing one carries the latest rows.
         // A success drops a pending one when the scope closes, since the result carries the final rows.
@@ -150,6 +151,7 @@ export const create = (
                   }).pipe(
                     Effect.mapError((error) => new ToolFailure({ message: toSessionError(error).message, error })),
                   )
+                  if (executed.endTurn === true) yield* Ref.set(endTurn, true)
                   const content = resultContent(executed)
                   const outputFileParts = outputFiles(content)
                   if (outputFileParts.length > 0)
@@ -195,6 +197,7 @@ export const create = (
           output: value,
           content,
           metadata,
+          ...((yield* Ref.get(endTurn)) ? { endTurn: true } : {}),
         }
       }).pipe(Effect.scoped),
   } satisfies Info

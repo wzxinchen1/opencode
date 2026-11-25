@@ -113,6 +113,26 @@ test("local tool success serializes media base64 once through canonical content"
   })
 })
 
+test("a tool result that ends the turn blocks continuation", async () => {
+  const ends = capture()
+  await Effect.runPromise(ends.publisher.publish(LLMEvent.toolCall({ id: "call-ask", name: "ask_project", input: {} })))
+  expect(ends.publisher.record().needsContinuation).toBe(true)
+  await Effect.runPromise(
+    ends.publisher.toolExecution("call-ask", "ask_project", {
+      content: [{ type: "text", text: "accepted" }],
+      endTurn: true,
+    }),
+  )
+  expect(ends.publisher.record()).toMatchObject({ endTurn: true, needsContinuation: false })
+
+  const ordinary = capture()
+  await Effect.runPromise(ordinary.publisher.publish(LLMEvent.toolCall({ id: "call-read", name: "read", input: {} })))
+  await Effect.runPromise(
+    ordinary.publisher.toolExecution("call-read", "read", { content: [{ type: "text", text: "text" }] }),
+  )
+  expect(ordinary.publisher.record()).toMatchObject({ endTurn: false, needsContinuation: true })
+})
+
 test("provider-executed success derives content and retains provider result state", async () => {
   const { published, publisher } = capture()
   await Effect.runPromise(publisher.publish(LLMEvent.toolCall({ ...call, providerExecuted: true })))

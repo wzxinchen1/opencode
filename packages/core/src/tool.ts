@@ -34,6 +34,8 @@ export interface Editor {
   readonly add: (tool: Tool.Info) => void
   readonly update: (id: string, update: (tool: Types.Mutable<Tool.Info>) => void) => void
   readonly remove: (id: string) => void
+  /** Declares whether a tool's result ends the turn; keyed by effective name and independent of registration order. */
+  readonly endTurn: (name: string, enabled: boolean) => void
 }
 
 type Data = {
@@ -41,6 +43,7 @@ type Data = {
   // Converted once at registration; schemas cannot change without re-registering the tool.
   definitions: Map<string, ToolDefinition>
   namespaces: Map<string, Tool.Namespace>
+  endTurn: Set<string>
   errors: { kind: 'tool' | 'namespace'; name: string; namespace?: string; error: RegistrationError }[]
 }
 
@@ -175,14 +178,17 @@ const layer = Layer.effect(
           ...(execution.value.output === undefined ? {} : { output: execution.value.output }),
           content: execution.value.content,
           ...(execution.value.metadata === undefined ? {} : { metadata: execution.value.metadata }),
+          ...(execution.value.endTurn === undefined ? {} : { endTurn: execution.value.endTurn }),
         },
       }
       yield* hooks.trigger('tool', 'execute.after', afterEvent)
       const afterContent = yield* normalizeImages(normalizeContent(afterEvent.result.content, afterEvent.result.output))
+      const endTurn = afterEvent.result.endTurn === true || state.get().endTurn.has(name)
       return {
         ...(afterEvent.result.output === undefined ? {} : { output: afterEvent.result.output }),
         content: afterContent,
         ...(afterEvent.result.metadata === undefined ? {} : { metadata: afterEvent.result.metadata }),
+        ...(endTurn ? { endTurn: true } : {}),
       }
     })
 
@@ -216,6 +222,7 @@ const layer = Layer.effect(
         tools: new Map(),
         definitions: new Map(),
         namespaces: new Map(),
+        endTurn: new Set(),
         errors: [],
       }),
       editor: (editor) => ({
@@ -247,6 +254,10 @@ const layer = Layer.effect(
         remove: (id) => {
           editor.tools.delete(id)
           editor.definitions.delete(id)
+        },
+        endTurn: (name, enabled) => {
+          if (enabled) editor.endTurn.add(name)
+          else editor.endTurn.delete(name)
         },
       }),
       notify: (value) => {

@@ -79,6 +79,8 @@ export interface StepRecord {
     readonly usage: Extract<LLMEvent, { type: "step-finish" }>["usage"]
   }
   readonly needsContinuation: boolean
+  /** A settled tool ended the turn, so the runner sends no further model request even after a truncated response. */
+  readonly endTurn: boolean
 }
 
 /** Derives canonical model content from a provider-hosted tool result. */
@@ -108,6 +110,7 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, "publish">, inp
     readonly name: string
     called: boolean
     settled: boolean
+    endTurn: boolean
     providerExecuted: boolean
     progress?: Tool.Metadata
     input?: InputExcerpt
@@ -310,6 +313,7 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, "publish">, inp
       name: event.name,
       called: false,
       settled: false,
+      endTurn: false,
       providerExecuted: event.providerExecuted === true,
     }
     tools.set(event.id, tool)
@@ -583,6 +587,7 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, "publish">, inp
       return yield* Effect.die(new Error(`Tool execution name changed for ${id}: ${tool.name} -> ${name}`))
     if (tool.settled) return yield* Effect.die(new Error(`Duplicate tool execution: ${id}`))
     tool.settled = true
+    tool.endTurn = result.endTurn === true
     const content = result.content
     if (!isReadonlyArrayNonEmpty(content)) return yield* Effect.die(new Error(`Tool execution has no content: ${id}`))
     yield* bus.publish(SessionEvent.Tool.Success, {
@@ -612,9 +617,10 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, "publish">, inp
       providerFailed,
       failure: stepFailure,
       finish: stepSettlement,
+      endTurn: Iterable.some(tools.values(), (tool) => tool.settled && tool.endTurn),
       needsContinuation: Iterable.some(
         tools.values(),
-        (tool) => !tool.providerExecuted && (tool.called || tool.settled),
+        (tool) => !tool.providerExecuted && (tool.called || tool.settled) && !tool.endTurn,
       ),
     }),
     startAssistant,

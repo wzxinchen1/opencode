@@ -73,6 +73,14 @@ const constant = (text: string): Info => ({
   execute: () => Effect.succeed({ output: { text }, content: text }),
 })
 
+const ending = (text: string): Info => ({
+  name: "ending",
+  description: "End the turn",
+  input: Schema.Struct({ text: Schema.String }),
+  output: Schema.Struct({ text: Schema.String }),
+  execute: () => Effect.succeed({ output: { text }, content: text, endTurn: true }),
+})
+
 const transform = (service: Tool.Interface, tools: Readonly<Record<string, Info>>, options?: Tool.Options) =>
   service.transform((editor) =>
     Object.entries(tools).forEach(([name, tool]) => editor.add({ ...tool, name, options: options ?? tool.options })),
@@ -126,6 +134,18 @@ describe("Tool", () => {
         expect(editor.get("acme_echo")?.name).toBe("echo")
         expect(editor.get("missing")).toBeUndefined()
       })
+    }),
+  )
+
+  it.effect("marks declared tools as ending the turn", () =>
+    Effect.gen(function* () {
+      const service = yield* Tool.Service
+      yield* transform(service, { declared: constant("declared") }, { codemode: false })
+      yield* transform(service, { byEditor: constant("byEditor"), byResult: ending("byResult") }, { codemode: false })
+      yield* service.transform((editor) => editor.endTurn("byEditor", true))
+      expect((yield* executeTool(service, call("byEditor"))).endTurn).toBe(true)
+      expect((yield* executeTool(service, call("byResult"))).endTurn).toBe(true)
+      expect((yield* executeTool(service, call("declared"))).endTurn).toBeUndefined()
     }),
   )
 
@@ -1388,6 +1408,32 @@ describe("Tool", () => {
       expect(executed).toEqual(["old:request"])
       // The inner tool's own progress would replace the call rows, so it is not published.
       expect(progress).toEqual([{ toolCalls: [{ tool: "echo", status: "running", input: { text: "request" } }] }])
+    }),
+  )
+
+  it.effect("keeps an inner tool's turn end on the Code Mode result", () =>
+    Effect.gen(function* () {
+      const service = yield* Tool.Service
+      yield* transform(service, {
+        ask: {
+          name: "ask",
+          description: "Ask another project",
+          input: Schema.Struct({ text: Schema.String }),
+          output: Schema.Struct({ text: Schema.String }),
+          execute: ({ text }) => Effect.succeed({ output: { text }, content: text, endTurn: true }),
+        },
+      })
+      const toolSet = yield* service.snapshot()
+      const execution = yield* toolSet.execute({
+        ...call("execute"),
+        call: {
+          type: "tool-call",
+          id: "call-execute-end",
+          name: "execute",
+          input: { code: "return await tools.ask({ text: \"hi\" })" },
+        },
+      })
+      expect(execution.endTurn).toBe(true)
     }),
   )
 })
