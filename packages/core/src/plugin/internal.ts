@@ -34,6 +34,7 @@ import { ConfigSessionSearchPlugin } from "../config/plugin/session-search.js"
 import { ConfigSnapshotPlugin } from "../config/plugin/snapshot.js"
 import { ConfigSkillPlugin } from "../config/plugin/skill.js"
 import { ConfigCompatibilityPlugin } from "../config/plugin/compatibility.js"
+import { ConfigToolPlugin } from "../config/plugin/tool.js"
 import { ConfigToolOutputPlugin } from "../config/plugin/tool-output.js"
 import { ConfigWebSearchPlugin } from "../config/plugin/websearch.js"
 import { ConfigWorktreePlugin } from "../config/plugin/worktree.js"
@@ -323,6 +324,7 @@ const post = [
   ConfigSessionSearchPlugin.Plugin,
   ConfigSnapshotPlugin.Plugin,
   ConfigToolOutputPlugin.Plugin,
+  ConfigToolPlugin.Plugin,
   ConfigCompatibilityPlugin.Plugin,
   ConfigSkillPlugin.Plugin,
   ConfigProviderPlugin.Plugin,

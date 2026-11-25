@@ -37,9 +37,10 @@ const it = testEffect(
 )
 
 for (const fixture of [
-  { finish: "stop", toolChoice: undefined },
-  { finish: "content-filter", toolChoice: undefined },
-  { finish: "stop", toolChoice: "none" },
+  { finish: "stop", toolChoice: undefined, endTurn: false },
+  { finish: "content-filter", toolChoice: undefined, endTurn: false },
+  { finish: "stop", toolChoice: "none", endTurn: false },
+  { finish: "stop", toolChoice: undefined, endTurn: true },
 ] as const) {
   it.effect(`settles ${fixture.finish} with tool choice ${fixture.toolChoice ?? "default"}`, () =>
     Effect.gen(function* () {
@@ -115,7 +116,10 @@ for (const fixture of [
             executeTool: () =>
               Effect.sync(() => {
                 executions++
-                return { content: [{ type: "text", text: "Completed tool" }] }
+                return {
+                  content: [{ type: "text", text: "Completed tool" }],
+                  ...(fixture.endTurn ? { endTurn: true } : {}),
+                }
               }),
           },
           retry: (_cause, _error, retry) =>
@@ -128,7 +132,7 @@ for (const fixture of [
       expect(executions).toBe(fixture.toolChoice === "none" ? 0 : 1)
       if (Exit.isSuccess(result))
         expect(result.value).toEqual(
-          SessionStep.Outcome.Completed({ needsContinuation: fixture.toolChoice !== "none" }),
+          SessionStep.Outcome.Completed({ needsContinuation: fixture.toolChoice !== "none" && !fixture.endTurn }),
         )
       expect(yield* llm.requests()).toHaveLength(1)
       expect(captures).toBe(2)
@@ -160,6 +164,67 @@ for (const fixture of [
     }),
   )
 }
+
+it.effect("ends the turn on a truncated response when a tool declares endTurn", () =>
+  Effect.gen(function* () {
+    const db = (yield* Database.Service).db
+    const llm = yield* TestLLM.Test
+    const sessionID = Session.ID.create()
+    const assistantMessageID = SessionMessage.ID.create()
+    const steps = yield* SessionStep.make.pipe(
+      Effect.provide(
+        Layer.mock(Snapshot.Service)({
+          capture: () => Effect.succeed(undefined),
+          files: () => Effect.succeed([]),
+        }),
+      ),
+    )
+    yield* db
+      .insert(ProjectTable)
+      .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
+      .onConflictDoNothing()
+      .run()
+    yield* db
+      .insert(SessionTable)
+      .values({ id: sessionID, project_id: Project.ID.global, slug: "step", directory: "/project", version: "test" })
+      .run()
+    const model = SessionRunnerModel.resolved(
+      LanguageModel.make({ id: "test-model", provider: "test", route: OpenAIChat.route }),
+      {
+        capabilities: { tools: true, input: ["text"], output: ["text"] },
+        limit: { context: 100_000, output: 1_000 },
+        cost: [],
+      },
+    )
+    yield* llm.push(
+      TestLLM.complete(
+        { reason: { normalized: "length" }, usage: { inputTokens: 1, outputTokens: 1 } },
+        LLMEvent.toolCall({ id: "call-end-turn", name: "ask_project", input: {} }),
+      ),
+    )
+    const result = yield* steps
+      .attempt({
+        isLocationClosed: () => false,
+        sessionID,
+        assistantMessageID,
+        agent: Agent.defaultID,
+        model,
+        prepared: {
+          retry: () => Effect.void,
+          request: ai.request({ model: model.model, prompt: "Ask another project" }),
+          options: {},
+          executeTool: () => Effect.succeed({ content: [{ type: "text", text: "accepted" }], endTurn: true }),
+        },
+        retry: () => Effect.succeed({ retry: false }),
+        recoverContinuation: true,
+        recoverOverflow: Effect.succeed(false),
+      })
+      .pipe(Effect.exit)
+    expect(Exit.isSuccess(result)).toBe(true)
+    if (Exit.isSuccess(result))
+      expect(result.value).toEqual(SessionStep.Outcome.Completed({ needsContinuation: false }))
+  }),
+)
 
 it.effect("records the cost the endpoint reports instead of the catalog price", () =>
   Effect.gen(function* () {

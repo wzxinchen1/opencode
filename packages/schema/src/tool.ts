@@ -111,6 +111,8 @@ export interface Result<Output extends ValueSchema<any> | undefined = ValueSchem
   readonly output?: OutputValue<Output>
   readonly content?: string | ReadonlyArray<Content>
   readonly metadata?: Metadata
+  /** The call ends the turn: its settlement sends no further model request for the step. */
+  readonly endTurn?: boolean
 }
 
 export type Info<

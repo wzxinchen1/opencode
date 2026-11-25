@@ -82,6 +82,7 @@ export interface ToolExecution {
   readonly output?: any
   readonly content?: ReadonlyArray<Tool.Content>
   readonly metadata?: Tool.Metadata
+  readonly endTurn?: boolean
   readonly error?: SessionError.Error
 }
 
