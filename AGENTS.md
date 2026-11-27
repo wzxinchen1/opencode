@@ -186,6 +186,10 @@ const table = sqliteTable("session", {
 - Say in the PR body which flag guards the change. The reserved switches `OPENCODE_FLAGS=all` and `experimental.all_flags: true` skip opt-in-only flags; use `all,-<key>` or `experimental.<key>: false` to opt out within the respective source.
 - Ship a feature by deleting its flag and the checks that read it.
 
+## Formatting
+
+- Do not run `mcp-infra/format` in this repository. It applies a personal global prettier setup that does not match this project's style; keep the formatting of the code you touch and let the project's own tooling decide the rest.
+
 ## Testing
 
 - Avoid mocks as much as possible, you shouldn't be using globalThis.\* at all unless it's the only option.
