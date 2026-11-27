@@ -1,22 +1,22 @@
-import { type LLMEvent, type ProviderMetadata, type ToolResultValue } from '@opencode/ai/effect'
-import { isRecord } from '@opencode/util/record'
-import type { Agent } from '@opencode/schema/agent'
-import type { Model } from '@opencode/schema/model'
-import type { RelativePath } from '@opencode/schema/schema'
-import type { Snapshot } from '@opencode/schema/snapshot'
-import type { TokenUsage } from '@opencode/schema/token-usage'
-import { Effect, Fiber, Iterable } from 'effect'
-import { isReadonlyArrayNonEmpty } from 'effect/Array'
-import { Bus } from '../../bus.js'
-import { SessionEvent } from '../event.js'
-import { SessionMessage } from '../message.js'
-import { SessionSchema } from '../schema.js'
-import { SessionError } from '@opencode/schema/session-error'
-import { Money } from '@opencode/schema/money'
-import { contentFilterError } from '../to-session-error.js'
-import type { Tool } from '../../tool.js'
-import { LiveToolMetadata } from './live-tool-metadata.js'
-import { stringify } from '../../tool/runtime.js'
+import { type LLMEvent, type ProviderMetadata, type ToolResultValue } from "@opencode/ai/effect"
+import { isRecord } from "@opencode/util/record"
+import type { Agent } from "@opencode/schema/agent"
+import type { Model } from "@opencode/schema/model"
+import type { RelativePath } from "@opencode/schema/schema"
+import type { Snapshot } from "@opencode/schema/snapshot"
+import type { TokenUsage } from "@opencode/schema/token-usage"
+import { Effect, Fiber, Iterable } from "effect"
+import { isReadonlyArrayNonEmpty } from "effect/Array"
+import { Bus } from "../../bus.js"
+import { SessionEvent } from "../event.js"
+import { SessionMessage } from "../message.js"
+import { SessionSchema } from "../schema.js"
+import { SessionError } from "@opencode/schema/session-error"
+import { Money } from "@opencode/schema/money"
+import { contentFilterError } from "../to-session-error.js"
+import type { Tool } from "../../tool.js"
+import { LiveToolMetadata } from "./live-tool-metadata.js"
+import { stringify } from "../../tool/runtime.js"
 
 type Input = {
   readonly sessionID: SessionSchema.ID
@@ -33,11 +33,11 @@ const asRecord = (value: unknown): Record<string, unknown> => (isRecord(value) ?
 
 /** Provider events that carry a step's first generated token, matching how the stream counts output. */
 const beginsOutput = (event: LLMEvent) =>
-  event.type === 'text-start' ||
-  event.type === 'reasoning-start' ||
-  event.type === 'tool-input-start' ||
-  event.type === 'tool-input-error' ||
-  event.type === 'tool-call'
+  event.type === "text-start" ||
+  event.type === "reasoning-start" ||
+  event.type === "tool-input-start" ||
+  event.type === "tool-input-error" ||
+  event.type === "tool-call"
 
 const INPUT_EXCERPT_LIMIT = 2048
 
@@ -46,22 +46,22 @@ type InputExcerpt = {
   readonly length: number
 }
 
-type InputFailureReason = 'malformed' | 'length' | 'incomplete'
+type InputFailureReason = "malformed" | "length" | "incomplete"
 
 const INPUT_FAILURES = {
   malformed: {
-    type: 'tool.input-json',
+    type: "tool.input-json",
     message:
-      'The tool input could not be parsed as JSON, so the call was not executed. Reissue the call with valid JSON arguments.',
+      "The tool input could not be parsed as JSON, so the call was not executed. Reissue the call with valid JSON arguments.",
   },
   length: {
-    type: 'tool.input-incomplete',
+    type: "tool.input-incomplete",
     message:
-      'The tool call was not executed because the output token limit (stop reason: length) was reached before you could complete the arguments. Break large payloads into smaller tool calls and reissue the call with complete arguments.',
+      "The tool call was not executed because the output token limit (stop reason: length) was reached before you could complete the arguments. Break large payloads into smaller tool calls and reissue the call with complete arguments.",
   },
   incomplete: {
-    type: 'tool.input-incomplete',
-    message: 'Tool call arguments were not completed and were not executed. Reissue the call with complete arguments.',
+    type: "tool.input-incomplete",
+    message: "Tool call arguments were not completed and were not executed. Reissue the call with complete arguments.",
   },
 } satisfies Record<InputFailureReason, SessionError.Error>
 
@@ -74,10 +74,10 @@ export interface StepRecord {
   readonly failure?: SessionError.Error
   /** Present once the provider finished the step normally. */
   readonly finish?: {
-    readonly finish: Extract<LLMEvent, { type: 'step-finish' }>['reason']['normalized']
+    readonly finish: Extract<LLMEvent, { type: "step-finish" }>["reason"]["normalized"]
     readonly rawFinish?: string
     readonly native?: SessionMessage.Native
-    readonly usage: Extract<LLMEvent, { type: 'step-finish' }>['usage']
+    readonly usage: Extract<LLMEvent, { type: "step-finish" }>["usage"]
   }
   readonly needsContinuation: boolean
   /** A settled tool ended the turn, so the runner sends no further model request even after a truncated response. */
@@ -88,8 +88,8 @@ export interface StepRecord {
 type NonEmptyContent = readonly [Tool.Content, ...Tool.Content[]]
 
 const hostedContent = (result: ToolResultValue): NonEmptyContent => {
-  if (result.type === 'content' && isReadonlyArrayNonEmpty(result.value)) return result.value
-  return [{ type: 'text', text: stringify(result.value) }]
+  if (result.type === "content" && isReadonlyArrayNonEmpty(result.value)) return result.value
+  return [{ type: "text", text: stringify(result.value) }]
 }
 
 /**
@@ -105,7 +105,7 @@ const hostedContent = (result: ToolResultValue): NonEmptyContent => {
  * order: each publishing fiber is sequential, so per-source order holds by construction,
  * and consumers fold by id/ordinal rather than global position.
  */
-export const createLLMEventPublisher = (bus: Pick<Bus.Interface, 'publish'>, input: Input) => {
+export const createLLMEventPublisher = (bus: Pick<Bus.Interface, "publish">, input: Input) => {
   const deltaBatchInterval = 100
   type ToolState = {
     readonly name: string
@@ -128,7 +128,7 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, 'publish'>, inp
   let providerFailed = false
   let outputStarted = false
   let stepFailure: SessionError.Error | undefined
-  let stepSettlement: StepRecord['finish']
+  let stepSettlement: StepRecord["finish"]
 
   const startAssistant = Effect.fnUntraced(function* () {
     if (stepStarted) return assistantMessageID
@@ -147,7 +147,7 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, 'publish'>, inp
     return assistantMessageID
   })
   const currentAssistantMessageID = () =>
-    stepStarted ? Effect.succeed(assistantMessageID) : Effect.die(new Error('Tool event before assistant step start'))
+    stepStarted ? Effect.succeed(assistantMessageID) : Effect.die(new Error("Tool event before assistant step start"))
   const streamed = Effect.fnUntraced(function* () {
     yield* bus.publish(SessionEvent.Step.Streamed, {
       sessionID: input.sessionID,
@@ -184,7 +184,7 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, 'publish'>, inp
         if (chunks.has(id)) return Effect.die(new Error(`Duplicate ${name} start: ${id}`))
         if (single && chunks.size > 0) return Effect.die(new Error(`${name} start before end: ${id}`))
         const ordinal = nextOrdinal++
-        chunks.set(id, { ordinal, values: [], pending: '', native })
+        chunks.set(id, { ordinal, values: [], pending: "", native })
         return Effect.succeed(ordinal)
       })
     const publishDelta = Effect.fnUntraced(function* (id: string) {
@@ -194,7 +194,7 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, 'publish'>, inp
       if (!current.pending) return undefined
       const value = current.pending
       // New chunks can arrive while the timer is publishing this batch.
-      current.pending = ''
+      current.pending = ""
       yield* delta(id, value, current.ordinal)
       return undefined
     }, Effect.uninterruptible)
@@ -229,7 +229,7 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, 'publish'>, inp
       yield* publishDelta(id)
       yield* ended(
         id,
-        value ?? current.values.join(''),
+        value ?? current.values.join(""),
         current.ordinal,
         native === undefined ? current.native : { ...current.native, ...native },
       )
@@ -273,9 +273,9 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, 'publish'>, inp
         }),
       true,
     )
-  const text = contentFragments('text', SessionEvent.Text)
-  const reasoning = contentFragments('reasoning', SessionEvent.Reasoning)
-  const toolInput = fragments('tool input', (id, value) =>
+  const text = contentFragments("text", SessionEvent.Text)
+  const reasoning = contentFragments("reasoning", SessionEvent.Reasoning)
+  const toolInput = fragments("tool input", (id, value) =>
     Effect.gen(function* () {
       const tool = tools.get(id)
       if (!tool) return yield* Effect.die(new Error(`Tool input end before start: ${id}`))
@@ -357,15 +357,15 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, 'publish'>, inp
     tool.malformed = true
   })
 
-  const failToolInput = (id: string, tool: ToolState, reason: Exclude<InputFailureReason, 'length'>) =>
-    failTool(id, inputFailure(tool.input, stepSettlement?.finish === 'length' ? 'length' : reason))
+  const failToolInput = (id: string, tool: ToolState, reason: Exclude<InputFailureReason, "length">) =>
+    failTool(id, inputFailure(tool.input, stepSettlement?.finish === "length" ? "length" : reason))
 
-  const flush = Effect.fn('SessionRunner.flush')(function* () {
+  const flush = Effect.fn("SessionRunner.flush")(function* () {
     yield* flushFragments()
     // The finish reason distinguishes invalid JSON from arguments cut off by the output limit.
     for (const [id, tool] of tools) {
       if (!tool.malformed || tool.settled) continue
-      yield* failToolInput(id, tool, 'malformed')
+      yield* failToolInput(id, tool, "malformed")
     }
   })
 
@@ -379,7 +379,7 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, 'publish'>, inp
       assistantMessageID,
       id,
       error:
-        tool.name === 'subagent' && error.type === 'aborted' && typeof tool.progress?.sessionID === 'string'
+        tool.name === "subagent" && error.type === "aborted" && typeof tool.progress?.sessionID === "string"
           ? { ...error, message: `${error.message} (sessionID: ${tool.progress.sessionID})` }
           : error,
       ...failureSnapshot(tool, metadata),
@@ -388,26 +388,26 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, 'publish'>, inp
     return true
   })
 
-  const failTools = Effect.fnUntraced(function* (error: SessionError.Error, mode: 'all' | 'hosted' | 'uncalled') {
+  const failTools = Effect.fnUntraced(function* (error: SessionError.Error, mode: "all" | "hosted" | "uncalled") {
     let failed = false
     for (const [id, tool] of tools) {
-      if (tool.settled || (mode === 'hosted' && !tool.providerExecuted) || (mode === 'uncalled' && tool.called))
+      if (tool.settled || (mode === "hosted" && !tool.providerExecuted) || (mode === "uncalled" && tool.called))
         continue
       if (yield* failTool(id, error)) failed = true
     }
     return failed
   })
 
-  const failIncompleteTools = Effect.fn('SessionRunner.failIncompleteTools')(function* () {
+  const failIncompleteTools = Effect.fn("SessionRunner.failIncompleteTools")(function* () {
     for (const [id, tool] of tools) {
       if (tool.called || tool.settled) continue
-      yield* failToolInput(id, tool, 'incomplete')
+      yield* failToolInput(id, tool, "incomplete")
     }
   })
 
   const failAssistant = Effect.fnUntraced(function* (error: SessionError.Error) {
     yield* flush()
-    yield* failTools(error, 'uncalled')
+    yield* failTools(error, "uncalled")
     yield* startAssistant()
     if (stepFailure === undefined) stepFailure = error
   })
@@ -424,24 +424,24 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, 'publish'>, inp
       sessionID: input.sessionID,
       assistantMessageID,
       error: stepFailure,
-      finish: stepSettlement?.finish === 'content-filter' ? stepSettlement.finish : undefined,
+      finish: stepSettlement?.finish === "content-filter" ? stepSettlement.finish : undefined,
       rawFinish: stepSettlement?.rawFinish,
       native: stepSettlement?.native,
       ...details,
     })
   })
 
-  const failUnsettledTools = Effect.fn('SessionRunner.failUnsettledTools')(
-    (error: SessionError.Error, scope: 'hosted' | 'all' | 'uncalled' = 'all') => failTools(error, scope),
+  const failUnsettledTools = Effect.fn("SessionRunner.failUnsettledTools")(
+    (error: SessionError.Error, scope: "hosted" | "all" | "uncalled" = "all") => failTools(error, scope),
   )
 
   const publish = Effect.fnUntraced(function* (event: LLMEvent) {
     if (beginsOutput(event)) yield* firstToken()
     switch (event.type) {
-      case 'step-start':
+      case "step-start":
         yield* startAssistant()
         return
-      case 'text-start':
+      case "text-start":
         outputStarted = true
         const startedTextOrdinal = yield* text.start(event.id, native(event.providerMetadata))
         yield* publishPendingDeltas()
@@ -451,13 +451,13 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, 'publish'>, inp
           ordinal: startedTextOrdinal,
         })
         return
-      case 'text-delta':
+      case "text-delta":
         yield* text.append(event.id, event.text, native(event.providerMetadata))
         return
-      case 'text-end':
+      case "text-end":
         yield* text.end(event.id, native(event.providerMetadata), event.text)
         return
-      case 'reasoning-start':
+      case "reasoning-start":
         outputStarted = true
         const startedReasoningOrdinal = yield* reasoning.start(event.id, native(event.providerMetadata))
         yield* publishPendingDeltas()
@@ -468,17 +468,17 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, 'publish'>, inp
           native: native(event.providerMetadata),
         })
         return
-      case 'reasoning-delta':
+      case "reasoning-delta":
         yield* reasoning.append(event.id, event.text, native(event.providerMetadata))
         return
-      case 'reasoning-end':
+      case "reasoning-end":
         yield* reasoning.end(event.id, native(event.providerMetadata), event.text)
         return
-      case 'tool-input-start':
+      case "tool-input-start":
         outputStarted = true
         yield* startToolInput(event)
         return
-      case 'tool-input-delta': {
+      case "tool-input-delta": {
         const tool = tools.get(event.id)
         if (!tool) return yield* Effect.die(new Error(`Tool input delta before start: ${event.id}`))
         if (tool.name !== event.name)
@@ -487,14 +487,14 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, 'publish'>, inp
         yield* toolInput.append(event.id, event.text)
         return
       }
-      case 'tool-input-end':
+      case "tool-input-end":
         yield* endToolInput(event)
         return
-      case 'tool-input-error':
+      case "tool-input-error":
         outputStarted = true
         yield* failMalformedToolInput(event)
         return
-      case 'tool-call': {
+      case "tool-call": {
         outputStarted = true
         const tool = tools.get(event.id) ?? (yield* startToolInput(event))
         if (toolInput.has(event.id)) yield* endToolInput(event)
@@ -513,7 +513,7 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, 'publish'>, inp
         })
         return
       }
-      case 'tool-result': {
+      case "tool-result": {
         // Provider-hosted results only; local executions publish through `toolExecution`.
         const tool = tools.get(event.id)
         if (!tool?.called) return yield* Effect.die(new Error(`Tool result before call: ${event.id}`))
@@ -522,18 +522,18 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, 'publish'>, inp
         if (tool.settled) {
           // A late error result is a benign straggler (e.g. after an abort
           // sweep); a late success would mean double execution, so it dies.
-          if (event.result.type === 'error') return
+          if (event.result.type === "error") return
           return yield* Effect.die(new Error(`Duplicate tool result: ${event.id}`))
         }
         tool.settled = true
         LiveToolMetadata.clear(assistantMessageID, event.id)
         const executed = event.providerExecuted === true || tool.providerExecuted
-        if (event.result.type === 'error') {
+        if (event.result.type === "error") {
           yield* bus.publish(SessionEvent.Tool.Failed, {
             sessionID: input.sessionID,
             assistantMessageID,
             id: event.id,
-            error: { type: 'tool.execution', message: stringify(event.result.value) },
+            error: { type: "tool.execution", message: stringify(event.result.value) },
             ...failureSnapshot(tool),
             executed,
             native: native(event.providerMetadata),
@@ -550,22 +550,22 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, 'publish'>, inp
         })
         return
       }
-      case 'step-finish':
+      case "step-finish":
         yield* flushFragments()
-        if (stepSettlement) return yield* Effect.die(new Error('Duplicate step finish'))
+        if (stepSettlement) return yield* Effect.die(new Error("Duplicate step finish"))
         stepSettlement = {
           finish: event.reason.normalized,
           rawFinish: event.reason.raw,
           native: native(event.providerMetadata),
           usage: event.usage,
         }
-        if (event.reason.normalized === 'content-filter') {
+        if (event.reason.normalized === "content-filter") {
           providerFailed = true
-          yield* failAssistant(contentFilterError('Provider blocked the response', event.reason))
+          yield* failAssistant(contentFilterError("Provider blocked the response", event.reason))
           return
         }
         return
-      case 'finish':
+      case "finish":
         return
     }
   }, Effect.uninterruptible)
@@ -646,7 +646,7 @@ function inputExcerpt(value: string): InputExcerpt {
 function inputFailure(input: InputExcerpt | undefined, reason: InputFailureReason) {
   const failure = INPUT_FAILURES[reason]
   if (!input?.length) return failure
-  const truncated = input.length > input.text.length ? '\n[truncated]' : ''
+  const truncated = input.length > input.text.length ? "\n[truncated]" : ""
   return {
     ...failure,
     message: `${failure.message}\n\nInput excerpt (first ${input.text.length} of ${input.length} characters):\n${input.text}${truncated}`,

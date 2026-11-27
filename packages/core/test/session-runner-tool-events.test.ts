@@ -1,37 +1,37 @@
-import { expect, test } from 'bun:test'
-import { Cause, Deferred, Effect, Exit, Fiber, Schema } from 'effect'
-import { eq } from 'drizzle-orm'
-import { LLMEvent } from '@opencode/ai/effect'
-import { Money } from '@opencode/schema/money'
-import { Bus } from '@opencode/core/bus'
-import { Database } from '@opencode/core/database/database'
-import { AppNodeBuilder } from '@opencode/core/effect/app-node-builder'
-import { EventTable } from '@opencode/core/event/sql'
-import { Event } from '@opencode/schema/event'
-import { Agent } from '@opencode/core/agent'
-import { SessionEvent } from '@opencode/core/session/event'
-import { SessionMessage } from '@opencode/core/session/message'
-import { Session } from '@opencode/core/session'
-import { SessionProjector } from '@opencode/core/session/projector'
-import { SessionMessageTable, SessionTable } from '@opencode/core/session/sql'
-import { SessionHistory } from '@opencode/core/session/history'
-import { Project } from '@opencode/core/project'
-import { ProjectTable } from '@opencode/core/project/sql'
-import { Model } from '@opencode/core/model'
-import { Provider } from '@opencode/core/provider'
-import { AbsolutePath, RelativePath } from '@opencode/core/schema'
-import { Snapshot } from '@opencode/core/snapshot'
-import { createLLMEventPublisher } from '@opencode/core/session/runner/publish-llm-event'
-import { SessionUsage } from '@opencode/core/session/usage'
-import { LayerNode } from '@opencode/util/effect/layer-node'
-import { it, testEffect } from './lib/effect'
-import { TestClock } from 'effect/testing'
+import { expect, test } from "bun:test"
+import { Cause, Deferred, Effect, Exit, Fiber } from "effect"
+import { eq } from "drizzle-orm"
+import { LLMEvent } from "@opencode/ai/effect"
+import { Money } from "@opencode/schema/money"
+import { Bus } from "@opencode/core/bus"
+import { Database } from "@opencode/core/database/database"
+import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
+import { EventTable } from "@opencode/core/event/sql"
+import { Event } from "@opencode/schema/event"
+import { Agent } from "@opencode/core/agent"
+import { SessionEvent } from "@opencode/core/session/event"
+import { SessionMessage } from "@opencode/core/session/message"
+import { Session } from "@opencode/core/session"
+import { SessionProjector } from "@opencode/core/session/projector"
+import { SessionMessageTable, SessionTable } from "@opencode/core/session/sql"
+import { SessionHistory } from "@opencode/core/session/history"
+import { Project } from "@opencode/core/project"
+import { ProjectTable } from "@opencode/core/project/sql"
+import { Model } from "@opencode/core/model"
+import { Provider } from "@opencode/core/provider"
+import { AbsolutePath, RelativePath } from "@opencode/core/schema"
+import { Snapshot } from "@opencode/core/snapshot"
+import { createLLMEventPublisher } from "@opencode/core/session/runner/publish-llm-event"
+import { SessionUsage } from "@opencode/core/session/usage"
+import { LayerNode } from "@opencode/util/effect/layer-node"
+import { it, testEffect } from "./lib/effect"
+import { TestClock } from "effect/testing"
 
-const sessionID = Session.ID.make('ses_tool_event_test')
-const base64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB'
+const sessionID = Session.ID.make("ses_tool_event_test")
+const base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB"
 
 const capture = (
-  providerMetadataKey = 'anthropic',
+  providerMetadataKey = "anthropic",
   options?: {
     readonly interruptProgress?: boolean
     readonly beforeTextDelta?: Effect.Effect<void>
@@ -39,7 +39,7 @@ const capture = (
   },
 ) => {
   const published: Array<{ readonly type: string; readonly data: unknown }> = []
-  const bus: Pick<Bus.Interface, 'publish'> = {
+  const bus: Pick<Bus.Interface, "publish"> = {
     publish: (definition, data) => {
       const publish = Effect.sync(() => {
         const event = { id: Event.ID.create(), type: definition.type, data } as Event.Payload<typeof definition>
@@ -60,9 +60,9 @@ const capture = (
     published,
     publisher: createLLMEventPublisher(bus, {
       sessionID,
-      agent: Agent.ID.make('build'),
+      agent: Agent.ID.make("build"),
       model: {
-        id: Model.ID.make('model'),
+        id: Model.ID.make("model"),
         providerID: Provider.ID.opencode,
       },
       providerMetadataKey,
@@ -73,83 +73,83 @@ const capture = (
   }
 }
 
-const call = LLMEvent.toolCall({ id: 'call-image', name: 'read', input: { path: 'pixel.png' } })
+const call = LLMEvent.toolCall({ id: "call-image", name: "read", input: { path: "pixel.png" } })
 const hostedResult = LLMEvent.toolResult({
-  id: 'call-image',
-  name: 'read',
+  id: "call-image",
+  name: "read",
   result: {
-    type: 'content',
+    type: "content",
     value: [
-      { type: 'text', text: 'Image read successfully' },
-      { type: 'file', uri: `data:image/png;base64,${base64}`, mime: 'image/png', name: 'pixel.png' },
+      { type: "text", text: "Image read successfully" },
+      { type: "file", uri: `data:image/png;base64,${base64}`, mime: "image/png", name: "pixel.png" },
     ],
   },
 })
 
-test('local tool success serializes media base64 once through canonical content', async () => {
+test("local tool success serializes media base64 once through canonical content", async () => {
   const { published, publisher } = capture()
   await Effect.runPromise(publisher.publish(call))
   await Effect.runPromise(
     publisher.toolExecution(call.id, call.name, {
-      output: { type: 'media', mime: 'image/png' },
+      output: { type: "media", mime: "image/png" },
       content: [
-        { type: 'text', text: 'Image read successfully' },
-        { type: 'file', uri: `data:image/png;base64,${base64}`, mime: 'image/png', name: 'pixel.png' },
+        { type: "text", text: "Image read successfully" },
+        { type: "file", uri: `data:image/png;base64,${base64}`, mime: "image/png", name: "pixel.png" },
       ],
     }),
   )
 
-  const success = published.find((event) => event.type === 'session.tool.success.2')
+  const success = published.find((event) => event.type === "session.tool.success.2")
   expect(success).toBeDefined()
   const serialized = JSON.stringify(success)
   expect(serialized.split(base64)).toHaveLength(2)
-  expect(success?.data).not.toHaveProperty('result')
-  expect(success?.data).not.toHaveProperty('output')
+  expect(success?.data).not.toHaveProperty("result")
+  expect(success?.data).not.toHaveProperty("output")
 
   expect(success?.data).toMatchObject({
     content: [
-      { type: 'text', text: 'Image read successfully' },
-      { type: 'file', uri: `data:image/png;base64,${base64}`, mime: 'image/png' },
+      { type: "text", text: "Image read successfully" },
+      { type: "file", uri: `data:image/png;base64,${base64}`, mime: "image/png" },
     ],
   })
 })
 
-test('a tool result that ends the turn blocks continuation', async () => {
+test("a tool result that ends the turn blocks continuation", async () => {
   const ends = capture()
-  await Effect.runPromise(ends.publisher.publish(LLMEvent.toolCall({ id: 'call-ask', name: 'ask_project', input: {} })))
+  await Effect.runPromise(ends.publisher.publish(LLMEvent.toolCall({ id: "call-ask", name: "ask_project", input: {} })))
   expect(ends.publisher.record().needsContinuation).toBe(true)
   await Effect.runPromise(
-    ends.publisher.toolExecution('call-ask', 'ask_project', {
-      content: [{ type: 'text', text: 'accepted' }],
+    ends.publisher.toolExecution("call-ask", "ask_project", {
+      content: [{ type: "text", text: "accepted" }],
       endTurn: true,
     }),
   )
   expect(ends.publisher.record()).toMatchObject({ endTurn: true, needsContinuation: false })
 
   const ordinary = capture()
-  await Effect.runPromise(ordinary.publisher.publish(LLMEvent.toolCall({ id: 'call-read', name: 'read', input: {} })))
+  await Effect.runPromise(ordinary.publisher.publish(LLMEvent.toolCall({ id: "call-read", name: "read", input: {} })))
   await Effect.runPromise(
-    ordinary.publisher.toolExecution('call-read', 'read', { content: [{ type: 'text', text: 'text' }] }),
+    ordinary.publisher.toolExecution("call-read", "read", { content: [{ type: "text", text: "text" }] }),
   )
   expect(ordinary.publisher.record()).toMatchObject({ endTurn: false, needsContinuation: true })
 })
 
-test('an ending tool result owns the step even beside another settled call', async () => {
+test("an ending tool result owns the step even beside another settled call", async () => {
   const { publisher } = capture()
-  await Effect.runPromise(publisher.publish(LLMEvent.toolCall({ id: 'call-read', name: 'read', input: {} })))
-  await Effect.runPromise(publisher.publish(LLMEvent.toolCall({ id: 'call-ask', name: 'ask_project', input: {} })))
-  await Effect.runPromise(publisher.toolExecution('call-read', 'read', { content: [{ type: 'text', text: 'text' }] }))
+  await Effect.runPromise(publisher.publish(LLMEvent.toolCall({ id: "call-read", name: "read", input: {} })))
+  await Effect.runPromise(publisher.publish(LLMEvent.toolCall({ id: "call-ask", name: "ask_project", input: {} })))
+  await Effect.runPromise(publisher.toolExecution("call-read", "read", { content: [{ type: "text", text: "text" }] }))
   expect(publisher.record().needsContinuation).toBe(true)
   await Effect.runPromise(
-    publisher.toolExecution('call-ask', 'ask_project', {
-      content: [{ type: 'text', text: 'accepted' }],
+    publisher.toolExecution("call-ask", "ask_project", {
+      content: [{ type: "text", text: "accepted" }],
       endTurn: true,
     }),
   )
   expect(publisher.record()).toMatchObject({ endTurn: true, needsContinuation: false })
 })
 
-test('provider-executed success derives content and retains provider result state', async () => {
+test("provider-executed success derives content and retains provider result state", async () => {
   const { published, publisher } = capture()
   await Effect.runPromise(publisher.publish(LLMEvent.toolCall({ ...call, providerExecuted: true })))
   await Effect.runPromise(
@@ -157,19 +157,19 @@ test('provider-executed success derives content and retains provider result stat
       LLMEvent.toolResult({
         ...hostedResult,
         providerExecuted: true,
-        providerMetadata: { anthropic: { result: { type: 'content', value: [] } } },
+        providerMetadata: { anthropic: { result: { type: "content", value: [] } } },
       }),
     ),
   )
-  const success = published.find((event) => event.type === 'session.tool.success.2')
-  expect(success?.data).not.toHaveProperty('result')
+  const success = published.find((event) => event.type === "session.tool.success.2")
+  expect(success?.data).not.toHaveProperty("result")
   expect(success?.data).toMatchObject({
     executed: true,
     content: [
-      { type: 'text', text: 'Image read successfully' },
-      { type: 'file', uri: `data:image/png;base64,${base64}`, mime: 'image/png' },
+      { type: "text", text: "Image read successfully" },
+      { type: "file", uri: `data:image/png;base64,${base64}`, mime: "image/png" },
     ],
-    native: { result: { type: 'content' } },
+    native: { result: { type: "content" } },
   })
 })
 
@@ -177,7 +177,7 @@ testEffect(
   AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node, SessionProjector.node]), [
     Bus.node.replace(Bus.configured({ persist: true })),
   ]),
-).effect('commits a hosted tool result when cancellation races with the aggregate lock', () =>
+).effect("commits a hosted tool result when cancellation races with the aggregate lock", () =>
   Effect.gen(function* () {
     const database = yield* Database.Service
     const bus = yield* Bus.Service
@@ -187,11 +187,11 @@ testEffect(
     const assistantMessageID = SessionMessage.ID.create()
     yield* database.db
       .insert(ProjectTable)
-      .values({ id: Project.ID.global, worktree: AbsolutePath.make('/project'), sandboxes: [] })
+      .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
       .run()
     yield* database.db
       .insert(SessionTable)
-      .values({ id: sessionID, project_id: Project.ID.global, slug: 'publish', directory: '/project', version: 'test' })
+      .values({ id: sessionID, project_id: Project.ID.global, slug: "publish", directory: "/project", version: "test" })
       .run()
     const publisher = createLLMEventPublisher(
       {
@@ -204,8 +204,8 @@ testEffect(
         sessionID,
         assistantMessageID,
         agent: Agent.defaultID,
-        model: { id: Model.ID.make('test-model'), providerID: Provider.ID.opencode },
-        providerMetadataKey: 'openai',
+        model: { id: Model.ID.make("test-model"), providerID: Provider.ID.opencode },
+        providerMetadataKey: "openai",
         started: 0,
       },
     )
@@ -220,7 +220,7 @@ testEffect(
     )
     // Listener delivery holds the aggregate lock after this unrelated event commits.
     const holder = yield* bus
-      .publish(SessionEvent.Renamed, { sessionID, title: 'Hold publication' })
+      .publish(SessionEvent.Renamed, { sessionID, title: "Hold publication" })
       .pipe(Effect.forkScoped({ startImmediately: true }))
     yield* Deferred.await(held)
     const publication = yield* publisher
@@ -236,427 +236,372 @@ testEffect(
     yield* Fiber.join(holder)
     yield* Fiber.join(cancellation)
     expect(Exit.hasInterrupts(yield* Fiber.await(publication))).toBe(true)
-    expect(yield* publisher.failUnsettledTools({ type: 'aborted', message: 'Interrupted' })).toBe(false)
+    expect(yield* publisher.failUnsettledTools({ type: "aborted", message: "Interrupted" })).toBe(false)
 
     const events = yield* database.db
       .select({ type: EventTable.type })
       .from(EventTable)
       .where(eq(EventTable.aggregate_id, sessionID))
       .all()
-    expect(events.filter((event) => event.type === 'session.tool.success.2')).toHaveLength(1)
-    expect(events.some((event) => event.type === 'session.tool.failed.2')).toBe(false)
+    expect(events.filter((event) => event.type === "session.tool.success.2")).toHaveLength(1)
+    expect(events.some((event) => event.type === "session.tool.failed.2")).toBe(false)
     const [message] = yield* SessionHistory.withParts(
       database.db,
       yield* database.db.select().from(SessionMessageTable).where(eq(SessionMessageTable.id, assistantMessageID)).all(),
     )
     expect(message?.data).toMatchObject({
-      content: [{ type: 'tool', id: call.id, executed: true, state: { status: 'completed' } }],
+      content: [{ type: "tool", id: call.id, executed: true, state: { status: "completed" } }],
     })
   }),
 )
 
-test('interrupted progress metadata remains in the terminal failure snapshot', async () => {
-  const { published, publisher } = capture('anthropic', { interruptProgress: true })
+test("interrupted progress metadata remains in the terminal failure snapshot", async () => {
+  const { published, publisher } = capture("anthropic", { interruptProgress: true })
   await Effect.runPromise(publisher.publish(call))
-  const exit = await Effect.runPromiseExit(publisher.progress(call.id, { phase: 'visible' }))
+  const exit = await Effect.runPromiseExit(publisher.progress(call.id, { phase: "visible" }))
   expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(true)
-  await Effect.runPromise(publisher.failUnsettledTools({ type: 'aborted', message: 'interrupted' }))
+  await Effect.runPromise(publisher.failUnsettledTools({ type: "aborted", message: "interrupted" }))
 
-  expect(published.find((event) => event.type === 'session.tool.failed.2')?.data).toMatchObject({
-    metadata: { phase: 'visible' },
+  expect(published.find((event) => event.type === "session.tool.failed.2")?.data).toMatchObject({
+    metadata: { phase: "visible" },
   })
 })
 
-test('interrupted subagent failures expose their existing child session to the model', async () => {
-  const { published, publisher } = capture('anthropic', { interruptProgress: true })
+test("interrupted subagent failures expose their existing child session to the model", async () => {
+  const { published, publisher } = capture("anthropic", { interruptProgress: true })
   const subagent = LLMEvent.toolCall({
-    id: 'call-subagent',
-    name: 'subagent',
-    input: { agent: 'general', description: 'Recover child', prompt: 'Continue working' },
+    id: "call-subagent",
+    name: "subagent",
+    input: { agent: "general", description: "Recover child", prompt: "Continue working" },
   })
   await Effect.runPromise(publisher.publish(subagent))
-  await Effect.runPromiseExit(publisher.progress(subagent.id, { sessionID: 'ses_existing_child', status: 'running' }))
-  await Effect.runPromise(publisher.failUnsettledTools({ type: 'aborted', message: 'Tool execution interrupted' }))
+  await Effect.runPromiseExit(publisher.progress(subagent.id, { sessionID: "ses_existing_child", status: "running" }))
+  await Effect.runPromise(publisher.failUnsettledTools({ type: "aborted", message: "Tool execution interrupted" }))
 
-  expect(published.find((event) => event.type === 'session.tool.failed.2')?.data).toMatchObject({
-    error: { type: 'aborted', message: 'Tool execution interrupted (sessionID: ses_existing_child)' },
-    metadata: { sessionID: 'ses_existing_child', status: 'running' },
+  expect(published.find((event) => event.type === "session.tool.failed.2")?.data).toMatchObject({
+    error: { type: "aborted", message: "Tool execution interrupted (sessionID: ses_existing_child)" },
+    metadata: { sessionID: "ses_existing_child", status: "running" },
   })
 })
 
-test('interrupted non-subagent failures do not expose their progress session IDs', async () => {
+test("interrupted non-subagent failures do not expose their progress session IDs", async () => {
   const { published, publisher } = capture()
   await Effect.runPromise(publisher.publish(call))
-  await Effect.runPromise(publisher.progress(call.id, { sessionID: 'ses_private', status: 'running' }))
-  await Effect.runPromise(publisher.failUnsettledTools({ type: 'aborted', message: 'Tool execution interrupted' }))
+  await Effect.runPromise(publisher.progress(call.id, { sessionID: "ses_private", status: "running" }))
+  await Effect.runPromise(publisher.failUnsettledTools({ type: "aborted", message: "Tool execution interrupted" }))
 
-  expect(published.find((event) => event.type === 'session.tool.failed.2')?.data).toMatchObject({
-    error: { type: 'aborted', message: 'Tool execution interrupted' },
-    metadata: { sessionID: 'ses_private', status: 'running' },
+  expect(published.find((event) => event.type === "session.tool.failed.2")?.data).toMatchObject({
+    error: { type: "aborted", message: "Tool execution interrupted" },
+    metadata: { sessionID: "ses_private", status: "running" },
   })
 })
 
-test('local failure metadata completes the progress snapshot', async () => {
+test("local failure metadata completes the progress snapshot", async () => {
   const { published, publisher } = capture()
   await Effect.runPromise(publisher.publish(call))
-  await Effect.runPromise(publisher.progress(call.id, { phase: 'running', provider: 'old' }))
+  await Effect.runPromise(publisher.progress(call.id, { phase: "running", provider: "old" }))
   await Effect.runPromise(
-    publisher.failTool(call.id, { type: 'tool.execution', message: 'failed' }, { provider: 'exa' }),
+    publisher.failTool(call.id, { type: "tool.execution", message: "failed" }, { provider: "exa" }),
   )
 
-  expect(published.find((event) => event.type === 'session.tool.failed.2')?.data).toMatchObject({
-    metadata: { phase: 'running', provider: 'exa' },
+  expect(published.find((event) => event.type === "session.tool.failed.2")?.data).toMatchObject({
+    metadata: { phase: "running", provider: "exa" },
   })
 })
 
-test('failure snapshot retains canonical progress above the default byte limit', async () => {
-  const { published, publisher } = capture('anthropic', { interruptProgress: true })
+test("failure snapshot retains canonical progress above the default byte limit", async () => {
+  const { published, publisher } = capture("anthropic", { interruptProgress: true })
   await Effect.runPromise(publisher.publish(call))
-  const detail = 'x'.repeat(60 * 1024)
+  const detail = "x".repeat(60 * 1024)
   await Effect.runPromiseExit(publisher.progress(call.id, { detail }))
-  await Effect.runPromise(publisher.failUnsettledTools({ type: 'aborted', message: 'interrupted' }))
+  await Effect.runPromise(publisher.failUnsettledTools({ type: "aborted", message: "interrupted" }))
 
-  expect(published.find((event) => event.type === 'session.tool.failed.2')?.data).toMatchObject({
+  expect(published.find((event) => event.type === "session.tool.failed.2")?.data).toMatchObject({
     metadata: { detail },
   })
 })
 
-test('failure before progress omits partial output fields', async () => {
+test("failure before progress omits partial output fields", async () => {
   const { published, publisher } = capture()
   await Effect.runPromise(publisher.publish(call))
-  await Effect.runPromise(publisher.failUnsettledTools({ type: 'aborted', message: 'interrupted' }))
+  await Effect.runPromise(publisher.failUnsettledTools({ type: "aborted", message: "interrupted" }))
 
-  const failed = published.find((event) => event.type === 'session.tool.failed.2')?.data
-  expect(failed).not.toHaveProperty('content')
-  expect(failed).not.toHaveProperty('metadata')
+  const failed = published.find((event) => event.type === "session.tool.failed.2")?.data
+  expect(failed).not.toHaveProperty("content")
+  expect(failed).not.toHaveProperty("metadata")
 })
 
-test('provider metadata is flattened using the route key', async () => {
+test("reasoning state from start, empty delta, and end is merged", async () => {
   const { published, publisher } = capture()
   await Effect.runPromise(
     publisher.publish(
-      LLMEvent.reasoningStart({ id: 'reasoning', providerMetadata: { anthropic: { signature: 'signed' } } }),
-    ),
-  )
-
-  expect(published.find((event) => event.type === 'session.reasoning.started.1')?.data).toMatchObject({
-    native: { signature: 'signed' },
-  })
-})
-
-test('reasoning state from start, empty delta, and end is merged', async () => {
-  const { published, publisher } = capture()
-  await Effect.runPromise(
-    publisher.publish(
-      LLMEvent.reasoningStart({ id: 'reasoning', providerMetadata: { anthropic: { blockType: 'thinking' } } }),
+      LLMEvent.reasoningStart({ id: "reasoning", providerMetadata: { anthropic: { blockType: "thinking" } } }),
     ),
   )
   await Effect.runPromise(
     publisher.publish(
       LLMEvent.reasoningDelta({
-        id: 'reasoning',
-        text: '',
-        providerMetadata: { anthropic: { signature: 'signed' }, gateway: { traceID: 'trace' } },
+        id: "reasoning",
+        text: "",
+        providerMetadata: { anthropic: { signature: "signed" }, gateway: { traceID: "trace" } },
       }),
     ),
   )
   await Effect.runPromise(
     publisher.publish(
-      LLMEvent.reasoningEnd({ id: 'reasoning', providerMetadata: { anthropic: { stopReason: 'tool_use' } } }),
+      LLMEvent.reasoningEnd({ id: "reasoning", providerMetadata: { anthropic: { stopReason: "tool_use" } } }),
     ),
   )
 
-  expect(published.find((event) => event.type === 'session.reasoning.ended.1')?.data).toMatchObject({
-    native: { blockType: 'thinking', signature: 'signed', stopReason: 'tool_use' },
+  expect(published.find((event) => event.type === "session.reasoning.ended.1")?.data).toMatchObject({
+    native: { blockType: "thinking", signature: "signed", stopReason: "tool_use" },
   })
 })
 
-for (const kind of ['text', 'reasoning'] as const) {
+for (const kind of ["text", "reasoning"] as const) {
   it.effect(`publishes the trailing ${kind} chunk while the provider is paused`, () =>
     Effect.gen(function* () {
       const { published, publisher } = capture()
-      yield* publisher.publish(LLMEvent[kind === 'text' ? 'textStart' : 'reasoningStart']({ id: kind }))
+      yield* publisher.publish(LLMEvent[kind === "text" ? "textStart" : "reasoningStart"]({ id: kind }))
       yield* publisher.publish(
-        LLMEvent[kind === 'text' ? 'textDelta' : 'reasoningDelta']({ id: kind, text: 'Running the comm' }),
+        LLMEvent[kind === "text" ? "textDelta" : "reasoningDelta"]({ id: kind, text: "Running the comm" }),
       )
-      yield* TestClock.adjust('100 millis')
+      yield* TestClock.adjust("100 millis")
       expect(
         published.filter((event) => event.type === `session.${kind}.delta`).map((event) => event.data),
-      ).toMatchObject([{ delta: 'Running the comm' }])
+      ).toMatchObject([{ delta: "Running the comm" }])
 
-      yield* publisher.publish(LLMEvent[kind === 'text' ? 'textDelta' : 'reasoningDelta']({ id: kind, text: 'and.' }))
-      yield* TestClock.adjust('100 millis')
+      yield* publisher.publish(LLMEvent[kind === "text" ? "textDelta" : "reasoningDelta"]({ id: kind, text: "and." }))
+      yield* TestClock.adjust("100 millis")
       expect(
         published.filter((event) => event.type === `session.${kind}.delta`).map((event) => event.data),
-      ).toMatchObject([{ delta: 'Running the comm' }, { delta: 'and.' }])
+      ).toMatchObject([{ delta: "Running the comm" }, { delta: "and." }])
       expect(published.some((event) => event.type === `session.${kind}.ended.1`)).toBe(false)
       yield* publisher.flush()
     }),
   )
 }
 
-it.effect('batches text deltas and flushes pending text before the terminal event', () =>
+it.effect("batches text deltas and flushes pending text before the terminal event", () =>
   Effect.gen(function* () {
     const { published, publisher } = capture()
     yield* Effect.forEach(
       [
-        LLMEvent.textStart({ id: 'text' }),
-        LLMEvent.textDelta({ id: 'text', text: 'one' }),
-        LLMEvent.textDelta({ id: 'text', text: ' two' }),
-        LLMEvent.textDelta({ id: 'text', text: ' three' }),
+        LLMEvent.textStart({ id: "text" }),
+        LLMEvent.textDelta({ id: "text", text: "one" }),
+        LLMEvent.textDelta({ id: "text", text: " two" }),
+        LLMEvent.textDelta({ id: "text", text: " three" }),
       ],
       publisher.publish,
       { discard: true },
     )
 
-    expect(published.filter((event) => event.type === 'session.text.delta')).toHaveLength(0)
-    yield* TestClock.adjust('99 millis')
-    expect(published.filter((event) => event.type === 'session.text.delta')).toHaveLength(0)
-    yield* TestClock.adjust('1 millis')
-    expect(published.filter((event) => event.type === 'session.text.delta').map((event) => event.data)).toMatchObject([
-      { delta: 'one two three' },
+    expect(published.filter((event) => event.type === "session.text.delta")).toHaveLength(0)
+    yield* TestClock.adjust("99 millis")
+    expect(published.filter((event) => event.type === "session.text.delta")).toHaveLength(0)
+    yield* TestClock.adjust("1 millis")
+    expect(published.filter((event) => event.type === "session.text.delta").map((event) => event.data)).toMatchObject([
+      { delta: "one two three" },
     ])
 
-    yield* publisher.publish(LLMEvent.textDelta({ id: 'text', text: ' four' }))
-    yield* publisher.publish(LLMEvent.textDelta({ id: 'text', text: ' five' }))
-    yield* publisher.publish(LLMEvent.textEnd({ id: 'text' }))
-    expect(published.slice(-2).map((event) => event.type)).toEqual(['session.text.delta', 'session.text.ended.1'])
-    expect(published.at(-2)?.data).toMatchObject({ delta: ' four five' })
+    yield* publisher.publish(LLMEvent.textDelta({ id: "text", text: " four" }))
+    yield* publisher.publish(LLMEvent.textDelta({ id: "text", text: " five" }))
+    yield* publisher.publish(LLMEvent.textEnd({ id: "text" }))
+    expect(published.slice(-2).map((event) => event.type)).toEqual(["session.text.delta", "session.text.ended.1"])
+    expect(published.at(-2)?.data).toMatchObject({ delta: " four five" })
     const count = published.length
-    yield* TestClock.adjust('1 second')
+    yield* TestClock.adjust("1 second")
     expect(published).toHaveLength(count)
   }),
 )
 
-it.effect('publishes batched deltas before the next block starts', () =>
+it.effect("publishes batched deltas before the next block starts", () =>
   Effect.gen(function* () {
     const { published, publisher } = capture()
     const types = () =>
       published
         .map((event) => event.type)
-        .filter((type) => type !== 'session.step.started.1' && type !== 'session.step.first-token.1')
+        .filter((type) => type !== "session.step.started.1" && type !== "session.step.first-token.1")
     yield* Effect.forEach(
       [
-        LLMEvent.reasoningStart({ id: 'reasoning' }),
-        LLMEvent.reasoningDelta({ id: 'reasoning', text: 'Plan the edits.' }),
-        LLMEvent.textStart({ id: 'text' }),
-        LLMEvent.textDelta({ id: 'text', text: 'Now the edits:' }),
-        LLMEvent.toolInputStart({ id: 'call', name: 'edit' }),
+        LLMEvent.reasoningStart({ id: "reasoning" }),
+        LLMEvent.reasoningDelta({ id: "reasoning", text: "Plan the edits." }),
+        LLMEvent.textStart({ id: "text" }),
+        LLMEvent.textDelta({ id: "text", text: "Now the edits:" }),
+        LLMEvent.toolInputStart({ id: "call", name: "edit" }),
       ],
       publisher.publish,
       { discard: true },
     )
     expect(types()).toEqual([
-      'session.reasoning.started.1',
-      'session.reasoning.delta',
-      'session.text.started.1',
-      'session.text.delta',
-      'session.tool.input.started.1',
+      "session.reasoning.started.1",
+      "session.reasoning.delta",
+      "session.text.started.1",
+      "session.text.delta",
+      "session.tool.input.started.1",
     ])
     // The first generated token is recorded once, before any of the blocks it belongs to.
-    expect(published.filter((event) => event.type === 'session.step.first-token.1')).toHaveLength(1)
+    expect(published.filter((event) => event.type === "session.step.first-token.1")).toHaveLength(1)
 
     // Blocks stay open: later chunks still batch, and nothing is published twice.
-    yield* publisher.publish(LLMEvent.textDelta({ id: 'text', text: ' more' }))
-    yield* TestClock.adjust('1 second')
-    yield* publisher.publish(LLMEvent.textEnd({ id: 'text' }))
-    expect(published.filter((event) => event.type === 'session.text.delta').map((event) => event.data)).toMatchObject([
-      { delta: 'Now the edits:' },
-      { delta: ' more' },
+    yield* publisher.publish(LLMEvent.textDelta({ id: "text", text: " more" }))
+    yield* TestClock.adjust("1 second")
+    yield* publisher.publish(LLMEvent.textEnd({ id: "text" }))
+    expect(published.filter((event) => event.type === "session.text.delta").map((event) => event.data)).toMatchObject([
+      { delta: "Now the edits:" },
+      { delta: " more" },
     ])
-    expect(published.find((event) => event.type === 'session.text.ended.1')?.data).toMatchObject({
-      text: 'Now the edits: more',
+    expect(published.find((event) => event.type === "session.text.ended.1")?.data).toMatchObject({
+      text: "Now the edits: more",
     })
   }),
 )
 
-it.effect('retains new chunks and orders text-end behind an in-flight timer publication', () =>
+it.effect("retains new chunks and orders text-end behind an in-flight timer publication", () =>
   Effect.gen(function* () {
     const entered = yield* Deferred.make<void>()
     const release = yield* Deferred.make<void>()
-    const { published, publisher } = capture('anthropic', {
+    const { published, publisher } = capture("anthropic", {
       beforeTextDelta: Deferred.succeed(entered, undefined).pipe(Effect.andThen(Deferred.await(release))),
     })
-    yield* publisher.publish(LLMEvent.textStart({ id: 'text' }))
-    yield* publisher.publish(LLMEvent.textDelta({ id: 'text', text: 'comm' }))
-    yield* TestClock.adjust('100 millis')
+    yield* publisher.publish(LLMEvent.textStart({ id: "text" }))
+    yield* publisher.publish(LLMEvent.textDelta({ id: "text", text: "comm" }))
+    yield* TestClock.adjust("100 millis")
     yield* Deferred.await(entered)
-    yield* publisher.publish(LLMEvent.textDelta({ id: 'text', text: 'and.' }))
+    yield* publisher.publish(LLMEvent.textDelta({ id: "text", text: "and." }))
     const ending = yield* publisher
-      .publish(LLMEvent.textEnd({ id: 'text' }))
+      .publish(LLMEvent.textEnd({ id: "text" }))
       .pipe(Effect.forkChild({ startImmediately: true }))
-    expect(published.some((event) => event.type === 'session.text.ended.1')).toBe(false)
+    expect(published.some((event) => event.type === "session.text.ended.1")).toBe(false)
     yield* Deferred.succeed(release, undefined)
     yield* Fiber.join(ending)
     expect(published.slice(-3)).toMatchObject([
-      { type: 'session.text.delta', data: { delta: 'comm' } },
-      { type: 'session.text.delta', data: { delta: 'and.' } },
-      { type: 'session.text.ended.1', data: { text: 'command.' } },
+      { type: "session.text.delta", data: { delta: "comm" } },
+      { type: "session.text.delta", data: { delta: "and." } },
+      { type: "session.text.ended.1", data: { text: "command." } },
     ])
   }),
 )
 
-it.effect('batches reasoning deltas and flushes pending reasoning before the terminal event', () =>
-  Effect.gen(function* () {
-    const { published, publisher } = capture()
-    yield* Effect.forEach(
-      [
-        LLMEvent.reasoningStart({ id: 'reasoning' }),
-        LLMEvent.reasoningDelta({ id: 'reasoning', text: 'one' }),
-        LLMEvent.reasoningDelta({ id: 'reasoning', text: ' two' }),
-        LLMEvent.reasoningDelta({ id: 'reasoning', text: ' three' }),
-        LLMEvent.reasoningEnd({ id: 'reasoning' }),
-      ],
-      publisher.publish,
-      { discard: true },
-    )
-
-    expect(
-      published.filter((event) => event.type === 'session.reasoning.delta').map((event) => event.data),
-    ).toMatchObject([{ delta: 'one two three' }])
-    expect(published.slice(-2).map((event) => event.type)).toEqual([
-      'session.reasoning.delta',
-      'session.reasoning.ended.1',
-    ])
-  }),
-)
-
-test('authoritative end values replace accumulated deltas in the durable ended events', async () => {
+test("authoritative end values replace accumulated deltas in the durable ended events", async () => {
   const { published, publisher } = capture()
   await Effect.runPromise(
     Effect.forEach(
       [
-        LLMEvent.textStart({ id: 'text' }),
-        LLMEvent.textDelta({ id: 'text', text: 'Hel' }),
-        LLMEvent.textEnd({ id: 'text', text: 'Hello!' }),
-        LLMEvent.reasoningStart({ id: 'reasoning' }),
-        LLMEvent.reasoningDelta({ id: 'reasoning', text: 'Thin' }),
-        LLMEvent.reasoningEnd({ id: 'reasoning', text: 'Thinking done.' }),
+        LLMEvent.textStart({ id: "text" }),
+        LLMEvent.textDelta({ id: "text", text: "Hel" }),
+        LLMEvent.textEnd({ id: "text", text: "Hello!" }),
+        LLMEvent.reasoningStart({ id: "reasoning" }),
+        LLMEvent.reasoningDelta({ id: "reasoning", text: "Thin" }),
+        LLMEvent.reasoningEnd({ id: "reasoning", text: "Thinking done." }),
       ],
       publisher.publish,
       { discard: true },
     ),
   )
 
-  expect(published.find((event) => event.type === 'session.text.ended.1')?.data).toMatchObject({ text: 'Hello!' })
-  expect(published.find((event) => event.type === 'session.reasoning.ended.1')?.data).toMatchObject({
-    text: 'Thinking done.',
+  expect(published.find((event) => event.type === "session.text.ended.1")?.data).toMatchObject({ text: "Hello!" })
+  expect(published.find((event) => event.type === "session.reasoning.ended.1")?.data).toMatchObject({
+    text: "Thinking done.",
   })
 })
 
-test('tool input deltas are accumulated without being published', async () => {
+test("tool input deltas are accumulated without being published", async () => {
   const { published, publisher } = capture()
   await Effect.runPromise(
     Effect.forEach(
       [
-        LLMEvent.toolInputStart({ id: 'call', name: 'read' }),
-        LLMEvent.toolInputDelta({ id: 'call', name: 'read', text: '{"path":' }),
-        LLMEvent.toolInputDelta({ id: 'call', name: 'read', text: '"file.txt"}' }),
-        LLMEvent.toolInputEnd({ id: 'call', name: 'read' }),
+        LLMEvent.toolInputStart({ id: "call", name: "read" }),
+        LLMEvent.toolInputDelta({ id: "call", name: "read", text: '{"path":' }),
+        LLMEvent.toolInputDelta({ id: "call", name: "read", text: '"file.txt"}' }),
+        LLMEvent.toolInputEnd({ id: "call", name: "read" }),
       ],
       publisher.publish,
       { discard: true },
     ),
   )
 
-  expect(published.some((event) => event.type === 'session.tool.input.delta')).toBe(false)
-  expect(published.find((event) => event.type === 'session.tool.input.ended.1')?.data).toMatchObject({
+  expect(published.some((event) => event.type === "session.tool.input.delta")).toBe(false)
+  expect(published.find((event) => event.type === "session.tool.input.ended.1")?.data).toMatchObject({
     text: '{"path":"file.txt"}',
   })
 })
 
-test('provider-executed tool metadata is flattened using the route key', async () => {
-  const { published, publisher } = capture('openai')
+test("provider-executed tool metadata is flattened using the route key", async () => {
+  const { published, publisher } = capture("openai")
   await Effect.runPromise(
     publisher.publish(
       LLMEvent.toolCall({
-        id: 'hosted',
-        name: 'web_search',
-        input: { query: 'Effect' },
+        id: "hosted",
+        name: "web_search",
+        input: { query: "Effect" },
         providerExecuted: true,
-        providerMetadata: { openai: { itemId: 'call' } },
+        providerMetadata: { openai: { itemId: "call" } },
       }),
     ),
   )
   await Effect.runPromise(
     publisher.publish(
       LLMEvent.toolResult({
-        id: 'hosted',
-        name: 'web_search',
-        result: { type: 'json', value: { found: true } },
+        id: "hosted",
+        name: "web_search",
+        result: { type: "json", value: { found: true } },
         providerExecuted: true,
-        providerMetadata: { openai: { itemId: 'result' } },
+        providerMetadata: { openai: { itemId: "result" } },
       }),
     ),
   )
 
-  expect(published.find((event) => event.type === 'session.tool.called.1')?.data).toMatchObject({
-    native: { itemId: 'call' },
+  expect(published.find((event) => event.type === "session.tool.called.1")?.data).toMatchObject({
+    native: { itemId: "call" },
   })
-  expect(published.find((event) => event.type === 'session.tool.success.2')?.data).toMatchObject({
-    native: { itemId: 'result' },
+  expect(published.find((event) => event.type === "session.tool.success.2")?.data).toMatchObject({
+    native: { itemId: "result" },
   })
 })
 
-test('binary failure emits no success event', async () => {
+test("binary failure emits no success event", async () => {
   const { published, publisher } = capture()
   await Effect.runPromise(publisher.publish(call))
-  await Effect.runPromise(publisher.failTool(call.id, { type: 'tool.execution', message: 'Cannot read binary file' }))
-  expect(published.some((event) => event.type === 'session.tool.success.2')).toBe(false)
-  expect(published.some((event) => event.type === 'session.tool.failed.2')).toBe(true)
+  await Effect.runPromise(publisher.failTool(call.id, { type: "tool.execution", message: "Cannot read binary file" }))
+  expect(published.some((event) => event.type === "session.tool.success.2")).toBe(false)
+  expect(published.some((event) => event.type === "session.tool.failed.2")).toBe(true)
 })
 
-test('success event data can carry provider-executed native data', () => {
-  const decoded = Schema.decodeUnknownSync(SessionEvent.Tool.Success.data)({
-    sessionID,
-    assistantMessageID: SessionMessage.ID.create(),
-    id: 'call-old',
-    content: [{ type: 'file', uri: `data:image/png;base64,${base64}`, mime: 'image/png' }],
-    executed: true,
-    native: {
-      result: {
-        type: 'content',
-        value: [{ type: 'file', uri: `data:image/png;base64,${base64}`, mime: 'image/png' }],
-      },
-    },
-  })
-  expect(decoded.native).toMatchObject({ result: { type: 'content' } })
-})
-
-test('step start waits for the pending start snapshot', async () => {
+test("step start waits for the pending start snapshot", async () => {
   const snapshot = Effect.runSync(Deferred.make<Snapshot.ID | undefined>())
-  const { published, publisher } = capture('anthropic', { pendingSnapshot: Deferred.await(snapshot) })
+  const { published, publisher } = capture("anthropic", { pendingSnapshot: Deferred.await(snapshot) })
   const started = Effect.runFork(publisher.publish(LLMEvent.stepStart({ index: 0 })))
   await Effect.runPromise(Effect.yieldNow)
   expect(published).toEqual([])
 
-  Effect.runSync(Deferred.succeed(snapshot, Snapshot.ID.make('tree-start')))
+  Effect.runSync(Deferred.succeed(snapshot, Snapshot.ID.make("tree-start")))
   await Effect.runPromise(Fiber.join(started))
   expect(published.map((event) => [event.type, (event.data as { snapshot?: string }).snapshot])).toEqual([
-    ['session.step.started.1', 'tree-start'],
+    ["session.step.started.1", "tree-start"],
   ])
 })
 
-test('step finish records settlement without publishing step ended', async () => {
+test("step finish records settlement without publishing step ended", async () => {
   const { published, publisher } = capture()
   await Effect.runPromise(publisher.publish(LLMEvent.stepStart({ index: 0 })))
-  await Effect.runPromise(publisher.publish(LLMEvent.stepFinish({ index: 0, reason: { normalized: 'stop' } })))
+  await Effect.runPromise(publisher.publish(LLMEvent.stepFinish({ index: 0, reason: { normalized: "stop" } })))
 
-  expect(published.map((event) => event.type)).toEqual(['session.step.started.1'])
-  expect(publisher.record().finish).toMatchObject({ finish: 'stop' })
+  expect(published.map((event) => event.type)).toEqual(["session.step.started.1"])
+  expect(publisher.record().finish).toMatchObject({ finish: "stop" })
 })
 
-test('content-filter finish retains failure evidence until step closeout', async () => {
+test("content-filter finish retains failure evidence until step closeout", async () => {
   const { published, publisher } = capture()
   await Effect.runPromise(publisher.publish(LLMEvent.stepStart({ index: 0 })))
   await Effect.runPromise(
     publisher.publish(
       LLMEvent.stepFinish({
         index: 0,
-        reason: { normalized: 'content-filter', raw: 'refusal' },
+        reason: { normalized: "content-filter", raw: "refusal" },
         providerMetadata: {
           anthropic: {
-            stopDetails: { type: 'refusal', category: 'safety', explanation: 'Blocked' },
+            stopDetails: { type: "refusal", category: "safety", explanation: "Blocked" },
           },
         },
         usage: {
@@ -668,49 +613,49 @@ test('content-filter finish retains failure evidence until step closeout', async
     ),
   )
 
-  expect(published.map((event) => event.type)).toEqual(['session.step.started.1'])
+  expect(published.map((event) => event.type)).toEqual(["session.step.started.1"])
   const settlement = publisher.record().finish
   expect(settlement).toMatchObject({
-    finish: 'content-filter',
-    rawFinish: 'refusal',
+    finish: "content-filter",
+    rawFinish: "refusal",
     native: {
-      stopDetails: { type: 'refusal', category: 'safety', explanation: 'Blocked' },
+      stopDetails: { type: "refusal", category: "safety", explanation: "Blocked" },
     },
     usage: { nonCachedInputTokens: 8, outputTokens: 3, reasoningTokens: 1 },
   })
-  if (!settlement) throw new Error('Expected content-filter settlement')
+  if (!settlement) throw new Error("Expected content-filter settlement")
   await Effect.runPromise(
     publisher.publishStepFailure({
       cost: Money.USD.make(1.25),
       tokens: SessionUsage.tokens(settlement.usage),
-      snapshot: Snapshot.ID.make('tree-end'),
-      files: [RelativePath.make('src/changed.ts')],
+      snapshot: Snapshot.ID.make("tree-end"),
+      files: [RelativePath.make("src/changed.ts")],
     }),
   )
-  expect(published.map((event) => event.type)).toEqual(['session.step.started.1', 'session.step.failed.1'])
+  expect(published.map((event) => event.type)).toEqual(["session.step.started.1", "session.step.failed.1"])
   expect(published.at(-1)?.data).toMatchObject({
-    error: { type: 'provider.content-filter', message: 'Provider blocked the response' },
-    finish: 'content-filter',
-    rawFinish: 'refusal',
+    error: { type: "provider.content-filter", message: "Provider blocked the response" },
+    finish: "content-filter",
+    rawFinish: "refusal",
     native: {
-      stopDetails: { type: 'refusal', category: 'safety', explanation: 'Blocked' },
+      stopDetails: { type: "refusal", category: "safety", explanation: "Blocked" },
     },
     cost: 1.25,
     tokens: { input: 8, output: 2, reasoning: 1 },
-    snapshot: 'tree-end',
-    files: ['src/changed.ts'],
+    snapshot: "tree-end",
+    files: ["src/changed.ts"],
   })
 })
 
-test('content-filter finish preserves partial streamed text and never ends the step successfully', async () => {
+test("content-filter finish preserves partial streamed text and never ends the step successfully", async () => {
   const { published, publisher } = capture()
   await Effect.runPromise(
     Effect.forEach(
       [
         LLMEvent.stepStart({ index: 0 }),
-        LLMEvent.textStart({ id: 'text' }),
-        LLMEvent.textDelta({ id: 'text', text: 'Partial' }),
-        LLMEvent.stepFinish({ index: 0, reason: { normalized: 'content-filter' } }),
+        LLMEvent.textStart({ id: "text" }),
+        LLMEvent.textDelta({ id: "text", text: "Partial" }),
+        LLMEvent.stepFinish({ index: 0, reason: { normalized: "content-filter" } }),
       ],
       (event) => publisher.publish(event),
       { discard: true },
@@ -718,14 +663,14 @@ test('content-filter finish preserves partial streamed text and never ends the s
   )
   await Effect.runPromise(publisher.publishStepFailure())
 
-  expect(published.some((event) => event.type === 'session.step.ended.1')).toBe(false)
-  expect(published.find((event) => event.type === 'session.text.ended.1')?.data).toMatchObject({ text: 'Partial' })
-  expect(published.find((event) => event.type === 'session.step.failed.1')?.data).toMatchObject({
-    error: { type: 'provider.content-filter' },
+  expect(published.some((event) => event.type === "session.step.ended.1")).toBe(false)
+  expect(published.find((event) => event.type === "session.text.ended.1")?.data).toMatchObject({ text: "Partial" })
+  expect(published.find((event) => event.type === "session.step.failed.1")?.data).toMatchObject({
+    error: { type: "provider.content-filter" },
   })
 })
 
-test('content-filter failure explains the refusal when the provider gives a reason', async () => {
+test("content-filter failure explains the refusal when the provider gives a reason", async () => {
   const { published, publisher } = capture()
   await Effect.runPromise(publisher.publish(LLMEvent.stepStart({ index: 0 })))
   await Effect.runPromise(
@@ -733,10 +678,10 @@ test('content-filter failure explains the refusal when the provider gives a reas
       LLMEvent.stepFinish({
         index: 0,
         reason: {
-          normalized: 'content-filter',
-          raw: 'refusal',
-          category: 'cyber',
-          explanation: 'This request was declined because it could enable cyber harm.',
+          normalized: "content-filter",
+          raw: "refusal",
+          category: "cyber",
+          explanation: "This request was declined because it could enable cyber harm.",
         },
       }),
     ),
@@ -745,8 +690,8 @@ test('content-filter failure explains the refusal when the provider gives a reas
 
   expect(published.at(-1)?.data).toMatchObject({
     error: {
-      type: 'provider.content-filter',
-      message: 'Provider blocked the response (cyber): This request was declined because it could enable cyber harm.',
+      type: "provider.content-filter",
+      message: "Provider blocked the response (cyber): This request was declined because it could enable cyber harm.",
     },
   })
 })
